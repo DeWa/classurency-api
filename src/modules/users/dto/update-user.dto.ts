@@ -1,33 +1,40 @@
-import { IsEnum, IsNotEmpty, IsString, Matches, MaxLength } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsOptional, IsString, Length, MaxLength } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { UserType } from '../user.entity';
 
-export class CreateUserDto {
+export class UpdateUserRequestDto {
   @ApiProperty({
     example: 'Ada Lovelace',
     maxLength: 128,
     description: 'User display name.',
   })
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   @MaxLength(128)
-  name!: string;
+  name?: string;
 
   @ApiProperty({
-    description: 'User username (letters, digits, - _ + only; no spaces)',
+    example: 'a-long-random-secret',
+    minLength: 6,
     maxLength: 128,
-    pattern: '^[-a-zA-Z0-9_+]+$',
+    description: 'Account password for API login (stored with Argon2id; distinct from the generated card PIN).',
   })
   @IsString()
-  @IsNotEmpty()
-  @MaxLength(128)
-  @Matches(/^[-a-zA-Z0-9_+]+$/, {
-    message: 'username must not contain spaces and may only use letters, numbers, and - _ +',
+  @IsOptional()
+  @Length(6, 128)
+  password?: string;
+
+  @ApiProperty({
+    example: 'admin',
+    enum: UserType,
+    description: 'User type.',
   })
-  userName!: string;
+  @IsEnum(UserType)
+  @IsOptional()
+  type?: UserType;
 }
 
-export class CreateUserResponseDto {
+export class UpdateUserResponseDto {
   @ApiProperty({ description: 'User ID' })
   @IsString()
   @IsNotEmpty()
@@ -37,11 +44,6 @@ export class CreateUserResponseDto {
   @IsString()
   @IsNotEmpty()
   name!: string;
-
-  @ApiProperty({ description: 'User password' })
-  @IsString()
-  @IsNotEmpty()
-  password!: string;
 
   @ApiProperty({ description: 'User type' })
   @IsEnum(UserType)
