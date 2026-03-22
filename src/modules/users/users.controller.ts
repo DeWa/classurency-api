@@ -1,5 +1,16 @@
-import { Body, Controller, Param, Post, Put, Req, UnauthorizedException, UseGuards } from '@nestjs/common';
-import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Put,
+  Req,
+  UnauthorizedException,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
+import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { RequirePrivilege } from '@common/guards/require-privilege.decorator';
 import { ApiTokenGuard } from '@common/guards/api-token.guard';
 import { UsersService } from './users.service';
@@ -7,6 +18,8 @@ import { CreateUserDto, CreateUserResponseDto } from './dto/create-user.dto';
 import { UpdateUserRequestDto, UpdateUserResponseDto } from './dto/update-user.dto';
 import { ApiAuthContext } from '@common/guards/api-token.guard';
 import { ApiTokenPrivilege } from '@modules/api-tokens/api-token.entity';
+import { GetUserRequestDto, GetUserResponseDto } from './dto/get-user.dto';
+import { ResponseDtoOmitter } from '@common/decorators/response-dto-omitter';
 
 @Controller({ path: 'users', version: '1' })
 @ApiTags('Users')
@@ -43,5 +56,37 @@ export class UsersController {
       throw new UnauthorizedException('Missing auth context');
     }
     return await this.usersService.updateUser(reqUserId, userId, dto);
+  }
+
+  @UseInterceptors(new ResponseDtoOmitter(GetUserResponseDto))
+  @Get('me')
+  @ApiOperation({
+    summary: 'Get the current user',
+    description: 'Get the current user',
+  })
+  @ApiResponse({ status: 200, description: 'User retrieved successfully', type: GetUserResponseDto })
+  @UseGuards(ApiTokenGuard)
+  @RequirePrivilege(ApiTokenPrivilege.USER)
+  async getCurrentUser(@Req() req: Request & { apiAuth?: ApiAuthContext }): Promise<GetUserResponseDto> {
+    const userId = req.apiAuth?.userId;
+    if (!userId) {
+      throw new UnauthorizedException('Missing auth context');
+    }
+    return await this.usersService.getUser(userId);
+  }
+
+  @UseInterceptors(new ResponseDtoOmitter(GetUserResponseDto))
+  @Get(':id')
+  @ApiOperation({
+    summary: 'Get a user',
+    description: 'Get a user with the given ID',
+  })
+  @ApiParam({ name: 'id', description: 'User ID', type: GetUserRequestDto })
+  @ApiResponse({ status: 200, description: 'User retrieved successfully', type: GetUserResponseDto })
+  @UseGuards(ApiTokenGuard)
+  @RequirePrivilege(ApiTokenPrivilege.ADMIN)
+  async getUser(@Param() params: GetUserRequestDto): Promise<GetUserResponseDto> {
+    const userId = params.id;
+    return await this.usersService.getUser(userId);
   }
 }

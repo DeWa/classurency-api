@@ -74,4 +74,12 @@ export class UsersService {
     const updatedUser = this.usersRepo.merge(user, dto);
     return this.usersRepo.save(updatedUser);
   }
+
+  async getUser(userId: string): Promise<User> {
+    const user = await this.usersRepo.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    return user;
+  }
 }
