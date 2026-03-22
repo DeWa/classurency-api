@@ -119,4 +119,4 @@ npm run swagger:generate
 
 ## License
 
-MIT — see `LICENCE`.
+GPLv3 — see `LICENCE`.
