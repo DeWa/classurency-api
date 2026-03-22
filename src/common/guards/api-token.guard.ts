@@ -48,23 +48,28 @@ export class ApiTokenGuard implements CanActivate {
       throw new UnauthorizedException('Missing API token');
     }
 
-    const { user, token } = await this.apiTokensService.validateToken(rawToken);
-    const auth = {
-      userId: user.id,
-      privilege: token.privilege,
-      userType: user.type,
-    };
-    req.apiAuth = auth;
+    try {
+      const { user, token } = await this.apiTokensService.validateToken(rawToken);
+      const auth = {
+        userId: user.id,
+        privilege: token.privilege,
+        userType: user.type,
+      };
+      req.apiAuth = auth;
 
-    const required = this.reflector.getAllAndOverride<ApiTokenPrivilege | undefined>(REQUIRED_PRIVILEGE_KEY, [
-      context.getHandler(),
-      context.getClass(),
-    ]);
-    if (!required) return true;
+      const required = this.reflector.getAllAndOverride<ApiTokenPrivilege | undefined>(REQUIRED_PRIVILEGE_KEY, [
+        context.getHandler(),
+        context.getClass(),
+      ]);
+      if (!required) return true;
 
-    if (PRIVILEGE_RANK[auth.privilege] < PRIVILEGE_RANK[required]) {
-      throw new UnauthorizedException('Insufficient privileges');
+      if (PRIVILEGE_RANK[auth.privilege] < PRIVILEGE_RANK[required]) {
+        throw new UnauthorizedException('Insufficient privileges');
+      }
+      return true;
+    } catch (error) {
+      console.error(error);
+      throw new UnauthorizedException('Invalid token');
     }
-    return true;
   }
 }
