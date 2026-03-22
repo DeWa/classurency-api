@@ -10,14 +10,8 @@ export const AppDataSource = new DataSource({
   username: process.env.DB_USER ?? 'postgres',
   password: process.env.DB_PASSWORD ?? 'postgres',
   database: process.env.DB_NAME ?? 'classurency',
-  entities: [
-    path.join(__dirname, 'src/**/*.entity.ts'),
-    path.join(__dirname, 'dist/**/*.entity.js'),
-  ],
-  migrations: [
-    path.join(__dirname, 'src/migrations/*.ts'),
-    path.join(__dirname, 'dist/migrations/*.js'),
-  ],
+  entities: [path.join(__dirname, 'src/**/*.entity.ts'), path.join(__dirname, 'dist/**/*.entity.js')],
+  migrations: [path.join(__dirname, 'src/migrations/*.ts'), path.join(__dirname, 'dist/migrations/*.js')],
   synchronize: false,
   logging: true,
 });
