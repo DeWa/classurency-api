@@ -9,6 +9,7 @@ import { AdminModule } from '@modules/admin/admin.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { typeOrmConfig } from './config/typeorm.config';
+import { AuthModule } from '@modules/auth/auth.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { typeOrmConfig } from './config/typeorm.config';
     UsersModule,
     TransactionsModule,
     AdminModule,
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService],
