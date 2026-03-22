@@ -45,6 +45,15 @@ export class CryptoService {
     return pin;
   }
 
+  /**
+   * Generate a random password
+   * @param length - The length of the password
+   * @returns The generated password
+   */
+  generateRandomPassword(length = 12): string {
+    return crypto.randomBytes(length).toString('hex');
+  }
+
   async hashPin(pin: string): Promise<string> {
     return argon2.hash(pin, { type: argon2.argon2id });
   }
