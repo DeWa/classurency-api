@@ -6,7 +6,13 @@ export class InitialSchema1710000000000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`CREATE EXTENSION IF NOT EXISTS "pgcrypto"`);
 
-    await queryRunner.query(`CREATE TYPE "user_type" AS ENUM ('user','provider', 'admin')`);
+    await queryRunner.query(`DO $$
+    BEGIN
+      IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_type') THEN
+        CREATE TYPE "user_type" AS ENUM ('user','provider', 'admin');
+      END IF;
+    END
+    $$;`);
 
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "users" (
