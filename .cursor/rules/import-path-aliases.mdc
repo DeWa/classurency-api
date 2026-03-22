@@ -1,0 +1,25 @@
+---
+description: Use @common and @modules path aliases for imports from src/common and src/modules
+globs: "**/*.ts"
+alwaysApply: false
+---
+
+# Import path aliases
+
+Configured in `tsconfig.json` (`paths`):
+
+- `@common/*` → `src/common/*`
+- `@modules/*` → `src/modules/*`
+
+When importing from those folders, use these aliases instead of deep relative paths (`../../common/...`, `../modules/...`).
+
+```typescript
+// Prefer
+import { CryptoService } from '@common/crypto/crypto.service';
+import { UsersService } from '@modules/users/users.service';
+
+// Avoid
+import { CryptoService } from '../../common/crypto/crypto.service';
+```
+
+Do not introduce new relative traversals across `src/common` or `src/modules` when an alias applies.
