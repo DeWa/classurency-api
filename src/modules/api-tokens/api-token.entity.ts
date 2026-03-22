@@ -35,11 +35,6 @@ export class ApiToken {
   @Column({ type: 'enum', enumName: 'api_token_type', enum: ApiTokenType, default: ApiTokenType.LOGIN })
   type!: ApiTokenType;
 
-  // sha256(token) in hex, so we can lookup without storing the raw token
-  @Column({ type: 'varchar', length: 64 })
-  @Index({ unique: true })
-  tokenHash!: string;
-
   @Column({ type: 'timestamptz', nullable: true })
   expiresAt!: Date | null;
 

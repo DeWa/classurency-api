@@ -36,12 +36,6 @@ export class AuthService {
     }
 
     const token = await this.apiTokensService.createToken(user, privilege, ApiTokenType.LOGIN);
-    return {
-      token: token.tokenHash,
-      privilege,
-      expiresAt: token.expiresAt,
-      userId: user.id,
-      type: token.type,
-    };
+    return { token };
   }
 }

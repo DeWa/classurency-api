@@ -125,7 +125,6 @@ export class InitialSchema1710000000000 implements MigrationInterface {
         "userId" uuid NOT NULL,
         "privilege" varchar(16) NOT NULL,
         "type" "api_token_type" NOT NULL DEFAULT 'login',
-        "tokenHash" text NOT NULL,
         "expiresAt" timestamptz NULL,
         "revokedAt" timestamptz NULL,
         "createdAt" timestamptz NOT NULL DEFAULT now(),
@@ -134,9 +133,6 @@ export class InitialSchema1710000000000 implements MigrationInterface {
     `);
 
     await queryRunner.query(`CREATE INDEX IF NOT EXISTS "IDX_api_tokens_userId" ON "api_tokens" ("userId")`);
-    await queryRunner.query(
-      `CREATE UNIQUE INDEX IF NOT EXISTS "IDX_api_tokens_tokenHash" ON "api_tokens" ("tokenHash")`,
-    );
 
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "item_providers" (
@@ -182,7 +178,6 @@ export class InitialSchema1710000000000 implements MigrationInterface {
     await queryRunner.query(`DROP INDEX IF EXISTS "IDX_item_providers_userId"`);
     await queryRunner.query(`DROP TABLE IF EXISTS "item_providers"`);
 
-    await queryRunner.query(`DROP INDEX IF EXISTS "IDX_api_tokens_tokenHash"`);
     await queryRunner.query(`DROP INDEX IF EXISTS "IDX_api_tokens_userId"`);
     await queryRunner.query(`DROP TABLE IF EXISTS "api_tokens"`);
     await queryRunner.query(`DROP TYPE IF EXISTS "api_token_type"`);

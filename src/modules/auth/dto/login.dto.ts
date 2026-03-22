@@ -1,6 +1,5 @@
-import { IsDate, IsEnum, IsNotEmpty, IsString, IsUUID, Length, Matches, MaxLength } from 'class-validator';
+import { IsNotEmpty, IsString, Length, Matches, MaxLength } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
-import { ApiTokenPrivilege, ApiTokenType } from '@modules/api-tokens/api-token.entity';
 
 export class LoginDto {
   @ApiProperty({
@@ -38,24 +37,4 @@ export class LoginResponseDto {
   @IsString()
   @IsNotEmpty()
   token!: string;
-
-  @ApiProperty({ example: 'user', description: 'Privilege' })
-  @IsEnum(ApiTokenPrivilege)
-  @IsNotEmpty()
-  privilege!: ApiTokenPrivilege;
-
-  @ApiProperty({ example: '2026-03-22T12:00:00.000Z', description: 'Token expiration date' })
-  @IsDate()
-  @IsNotEmpty()
-  expiresAt!: Date | null;
-
-  @ApiProperty({ example: '3fa85f64-5717-4562-b3fc-2c963f66afa6', format: 'uuid', description: 'User ID' })
-  @IsUUID()
-  @IsNotEmpty()
-  userId!: string;
-
-  @ApiProperty({ example: ApiTokenType.LOGIN, enum: ApiTokenType, description: 'Token type' })
-  @IsEnum(ApiTokenType)
-  @IsNotEmpty()
-  type!: ApiTokenType;
 }

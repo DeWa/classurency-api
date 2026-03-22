@@ -39,31 +39,30 @@ export class ApiTokensService {
     return maxPrivilege;
   }
 
-  async createToken(user: User, privilege: ApiTokenPrivilege, type: ApiTokenType) {
+  async createToken(user: User, privilege: ApiTokenPrivilege, type: ApiTokenType): Promise<string> {
     const expirationTime = '180d'; // TODO: Change maybe?
     const expirationDate = new Date(Date.now() + ms(expirationTime));
-
-    const jwtToken = this.cryptoService.generateJwtToken(
-      {
-        userId: user.id,
-        userType: user.type,
-        tokenId: crypto.randomUUID(),
-        privilege,
-        type,
-      },
-      expirationTime,
-    );
 
     const token = this.apiTokensRepo.create({
       userId: user.id,
       privilege,
       type,
-      tokenHash: jwtToken,
       expiresAt: expirationDate,
       revokedAt: null,
     });
     await this.apiTokensRepo.save(token);
-    return token;
+
+    const jwtToken = this.cryptoService.generateJwtToken(
+      {
+        userId: user.id,
+        userType: user.type,
+        tokenId: token.id,
+        privilege,
+        type,
+      },
+      expirationTime,
+    );
+    return jwtToken;
   }
 
   async createApiToken(dto: RequestTokenDto, reqAuthId: string) {
@@ -86,17 +85,13 @@ export class ApiTokensService {
 
     return {
       token,
-      privilege: token.privilege,
-      expiresAt: token.expiresAt,
-      userId: user.id,
-      type: token.type,
     };
   }
 
   async validateToken(rawToken: string): Promise<{ user: User; token: ApiToken }> {
     const payload = await this.cryptoService.verifyJwtToken(rawToken);
     const token = await this.apiTokensRepo.findOne({
-      where: { id: payload.tokenId },
+      where: { id: payload.tokenId, revokedAt: undefined },
     });
     if (!token) {
       throw new UnauthorizedException('Invalid token');

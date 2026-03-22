@@ -2,9 +2,9 @@ import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from
 import { ApiHeader } from '@nestjs/swagger';
 import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
-import { ApiTokensService } from '@modules/api-tokens/api-tokens.service';
 import { ApiTokenPrivilege } from '@modules/api-tokens/api-token.entity';
 import { UserType } from '@modules/users/user.entity';
+import { CryptoService } from '@common/crypto/crypto.service';
 
 export const REQUIRED_PRIVILEGE_KEY = 'requiredPrivilege';
 
@@ -34,8 +34,8 @@ function extractBearerToken(authHeader: string | undefined): string | null {
 })
 export class ApiTokenGuard implements CanActivate {
   constructor(
-    private readonly apiTokensService: ApiTokensService,
     private readonly reflector: Reflector,
+    private readonly cryptoService: CryptoService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -49,12 +49,7 @@ export class ApiTokenGuard implements CanActivate {
     }
 
     try {
-      const { user, token } = await this.apiTokensService.validateToken(rawToken);
-      const auth = {
-        userId: user.id,
-        privilege: token.privilege,
-        userType: user.type,
-      };
+      const auth = await this.cryptoService.verifyJwtToken(rawToken);
       req.apiAuth = auth;
 
       const required = this.reflector.getAllAndOverride<ApiTokenPrivilege | undefined>(REQUIRED_PRIVILEGE_KEY, [
