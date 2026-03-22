@@ -120,4 +120,32 @@ export class ApiTokensService {
       token,
     };
   }
+
+  /**
+   * Get the login token for a user
+   * @param user - The user to get the login token for
+   * @returns The login token for the user
+   */
+  async getLoginToken(user: User): Promise<ApiToken | null> {
+    const token = await this.apiTokensRepo.findOne({
+      where: { userId: user.id, type: ApiTokenType.LOGIN, revokedAt: undefined },
+      order: { createdAt: 'DESC' },
+    });
+    return token;
+  }
+
+  /**
+   * Revoke a token
+   * @param tokenId - The ID of the token to revoke
+   * @returns The revoked token
+   */
+  async revokeToken(tokenId: string) {
+    try {
+      const token = await this.apiTokensRepo.update({ id: tokenId }, { revokedAt: new Date() });
+      return token;
+    } catch (error) {
+      console.error(error);
+      throw new NotFoundException('Failed to revoke token');
+    }
+  }
 }

@@ -138,6 +138,9 @@ export class CryptoService {
   generateJwtToken(payload: JwtPayload, expiresIn: number | ms.StringValue): string {
     return jwt.sign(payload, this.masterKey, {
       expiresIn,
+      algorithm: 'HS256',
+      subject: payload.userId,
+      issuer: 'classurity',
     });
   }
 

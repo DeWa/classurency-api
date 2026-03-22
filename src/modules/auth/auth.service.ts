@@ -28,6 +28,13 @@ export class AuthService {
       throw new UnauthorizedException('User not found or invalid password');
     }
     const privilege = mapUserToApiTokenPrivilege(user.type);
+
+    // Revoke old login token if it exists
+    const oldToken = await this.apiTokensService.getLoginToken(user);
+    if (oldToken) {
+      await this.apiTokensService.revokeToken(oldToken.id);
+    }
+
     const token = await this.apiTokensService.createToken(user, privilege, ApiTokenType.LOGIN);
     return {
       token: token.tokenHash,
