@@ -12,6 +12,6 @@ export class JwtPayload {
   @IsUUID()
   tokenId!: string;
 
-  @IsIn(['admin', 'provider', 'user'])
+  @IsEnum(ApiTokenPrivilege)
   privilege!: ApiTokenPrivilege;
 }

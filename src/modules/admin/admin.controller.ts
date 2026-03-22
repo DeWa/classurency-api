@@ -4,6 +4,7 @@ import { ApiTokenGuard } from '@common/guards/api-token.guard';
 import { RequirePrivilege } from '@common/guards/require-privilege.decorator';
 import { AdminService } from './admin.service';
 import { MintDto } from './dto/mint.dto';
+import { ApiTokenPrivilege } from '@modules/api-tokens/api-token.entity';
 
 @Controller({ path: 'admin', version: '1' })
 @ApiTags('Admin')
@@ -13,7 +14,7 @@ export class AdminController {
 
   @Post('mint')
   @UseGuards(ApiTokenGuard)
-  @RequirePrivilege('admin')
+  @RequirePrivilege(ApiTokenPrivilege.ADMIN)
   mint(@Body() dto: MintDto) {
     return this.adminService.mint(dto);
   }

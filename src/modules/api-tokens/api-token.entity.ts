@@ -1,7 +1,16 @@
 import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { User } from '@modules/users/user.entity';
 
-export type ApiTokenPrivilege = 'admin' | 'provider' | 'user';
+export enum ApiTokenPrivilege {
+  ADMIN = 'admin',
+  PROVIDER = 'provider',
+  USER = 'user',
+}
+
+export enum ApiTokenType {
+  LOGIN = 'login',
+  API = 'api',
+}
 
 @Entity('api_tokens')
 export class ApiToken {
@@ -22,6 +31,9 @@ export class ApiToken {
 
   @Column({ type: 'varchar', length: 16 })
   privilege!: ApiTokenPrivilege;
+
+  @Column({ type: 'enum', enumName: 'api_token_type', enum: ApiTokenType, default: ApiTokenType.LOGIN })
+  type!: ApiTokenType;
 
   // sha256(token) in hex, so we can lookup without storing the raw token
   @Column({ type: 'varchar', length: 64 })

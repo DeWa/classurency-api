@@ -6,6 +6,7 @@ import { ApiTokenGuard, type ApiAuthContext } from '@common/guards/api-token.gua
 import { TransactionsService } from './transactions.service';
 import { TransferDto } from './dto/transfer.dto';
 import { PurchaseItemDto } from './dto/purchase-item.dto';
+import { ApiTokenPrivilege } from '@modules/api-tokens/api-token.entity';
 
 @Controller({ path: 'transactions', version: '1' })
 @ApiTags('Transactions')
@@ -14,7 +15,7 @@ export class TransactionsController {
 
   @Post('transfer')
   @UseGuards(ApiTokenGuard)
-  @RequirePrivilege('user')
+  @RequirePrivilege(ApiTokenPrivilege.USER)
   transfer(@Req() req: Request & { apiAuth?: ApiAuthContext }, @Body() dto: TransferDto) {
     if (!req.apiAuth) {
       throw new UnauthorizedException('Missing auth context');
@@ -24,7 +25,7 @@ export class TransactionsController {
 
   @Post('purchase-item')
   @UseGuards(ApiTokenGuard)
-  @RequirePrivilege('user')
+  @RequirePrivilege(ApiTokenPrivilege.USER)
   purchaseItem(@Req() req: Request & { apiAuth?: ApiAuthContext }, @Body() dto: PurchaseItemDto) {
     if (!req.apiAuth) {
       throw new UnauthorizedException('Missing auth context');

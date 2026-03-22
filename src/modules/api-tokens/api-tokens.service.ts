@@ -3,13 +3,13 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User, UserType } from '@modules/users/user.entity';
 import { CryptoService } from '@common/crypto/crypto.service';
-import { ApiToken, type ApiTokenPrivilege } from './api-token.entity';
+import { ApiToken, ApiTokenPrivilege, ApiTokenType } from './api-token.entity';
 import { RequestTokenDto } from './dto/request-token.dto';
 
 const PRIVILEGE_RANK: Record<ApiTokenPrivilege, number> = {
-  user: 1,
-  provider: 2,
-  admin: 3,
+  [ApiTokenPrivilege.USER]: 1,
+  [ApiTokenPrivilege.PROVIDER]: 2,
+  [ApiTokenPrivilege.ADMIN]: 3,
 };
 
 @Injectable()
@@ -25,11 +25,11 @@ export class ApiTokensService {
   private ensureAllowedPrivilege(userType: UserType, privilege: ApiTokenPrivilege): ApiTokenPrivilege {
     let maxPrivilege: ApiTokenPrivilege;
     if (userType === UserType.ADMIN) {
-      maxPrivilege = 'admin';
+      maxPrivilege = ApiTokenPrivilege.ADMIN;
     } else if (userType === UserType.PROVIDER) {
-      maxPrivilege = 'provider';
+      maxPrivilege = ApiTokenPrivilege.PROVIDER;
     } else {
-      maxPrivilege = 'user';
+      maxPrivilege = ApiTokenPrivilege.USER;
     }
 
     if (PRIVILEGE_RANK[privilege] > PRIVILEGE_RANK[maxPrivilege]) {

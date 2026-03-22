@@ -3,7 +3,7 @@ import { ApiHeader } from '@nestjs/swagger';
 import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
 import { ApiTokensService } from '@modules/api-tokens/api-tokens.service';
-import type { ApiTokenPrivilege } from '@modules/api-tokens/api-token.entity';
+import { ApiTokenPrivilege } from '@modules/api-tokens/api-token.entity';
 import { UserType } from '@modules/users/user.entity';
 
 export const REQUIRED_PRIVILEGE_KEY = 'requiredPrivilege';

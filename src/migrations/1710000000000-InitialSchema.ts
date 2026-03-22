@@ -37,14 +37,12 @@ export class InitialSchema1710000000000 implements MigrationInterface {
         "encryptedPrivateKey" text NOT NULL,
         "balance" numeric(18,2) NOT NULL DEFAULT 0,
         "isLocked" boolean NOT NULL DEFAULT FALSE,
-
         "createdAt" timestamptz NOT NULL DEFAULT now(),
         "updatedAt" timestamptz NOT NULL DEFAULT now(),
-        CONSTRAINT "FK_accounts_user" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE
+        CONSTRAINT "FK_accounts_user" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE
        )
     `);
     await queryRunner.query(`CREATE UNIQUE INDEX IF NOT EXISTS "IDX_accounts_nfcCardUid" ON "accounts" ("nfcCardUid")`);
-
     await queryRunner.query(`CREATE UNIQUE INDEX IF NOT EXISTS "IDX_accounts_userId" ON "accounts" ("userId")`);
 
     await queryRunner.query(`
@@ -113,12 +111,21 @@ export class InitialSchema1710000000000 implements MigrationInterface {
       `CREATE INDEX IF NOT EXISTS "IDX_transactions_nfcCardUid" ON "transactions" ("nfcCardUid")`,
     );
 
+    await queryRunner.query(`DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'api_token_type') THEN
+          CREATE TYPE "api_token_type" AS ENUM ('login', 'api');
+        END IF;
+      END
+      $$;`);
+
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "api_tokens" (
         "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
         "userId" uuid NOT NULL,
         "privilege" varchar(16) NOT NULL,
-        "tokenHash" varchar(64) NOT NULL,
+        "type" "api_token_type" NOT NULL DEFAULT 'login',
+        "tokenHash" text NOT NULL,
         "expiresAt" timestamptz NULL,
         "revokedAt" timestamptz NULL,
         "createdAt" timestamptz NOT NULL DEFAULT now(),
@@ -178,6 +185,7 @@ export class InitialSchema1710000000000 implements MigrationInterface {
     await queryRunner.query(`DROP INDEX IF EXISTS "IDX_api_tokens_tokenHash"`);
     await queryRunner.query(`DROP INDEX IF EXISTS "IDX_api_tokens_userId"`);
     await queryRunner.query(`DROP TABLE IF EXISTS "api_tokens"`);
+    await queryRunner.query(`DROP TYPE IF EXISTS "api_token_type"`);
 
     await queryRunner.query(`DROP INDEX IF EXISTS "IDX_transactions_nfcCardUid"`);
     await queryRunner.query(`DROP INDEX IF EXISTS "IDX_transactions_toAccountId"`);
@@ -189,6 +197,9 @@ export class InitialSchema1710000000000 implements MigrationInterface {
     await queryRunner.query(`DROP INDEX IF EXISTS "IDX_blocks_hash"`);
     await queryRunner.query(`DROP INDEX IF EXISTS "IDX_blocks_height"`);
     await queryRunner.query(`DROP TABLE IF EXISTS "blocks"`);
+
+    await queryRunner.query(`DROP INDEX IF EXISTS "IDX_account_attempts_accountId"`);
+    await queryRunner.query(`DROP TABLE IF EXISTS "account_attempts"`);
 
     await queryRunner.query(`DROP INDEX IF EXISTS "IDX_accounts_nfcCardUid"`);
     await queryRunner.query(`DROP INDEX IF EXISTS "IDX_accounts_userId"`);

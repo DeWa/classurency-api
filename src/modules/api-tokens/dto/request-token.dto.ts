@@ -1,6 +1,6 @@
-import { IsIn, IsOptional, IsUUID } from 'class-validator';
+import { IsEnum, IsOptional, IsUUID } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import type { ApiTokenPrivilege } from '../api-token.entity';
+import { ApiTokenPrivilege } from '../api-token.entity';
 
 export class RequestTokenDto {
   @ApiProperty({
@@ -13,10 +13,10 @@ export class RequestTokenDto {
 
   @ApiPropertyOptional({
     example: 'provider',
-    enum: ['admin', 'provider', 'user'],
+    enum: ApiTokenPrivilege,
     description: 'Requested privilege for the issued token (defaults to user).',
   })
   @IsOptional()
-  @IsIn(['admin', 'provider', 'user'])
+  @IsEnum(ApiTokenPrivilege)
   privilege?: ApiTokenPrivilege;
 }
