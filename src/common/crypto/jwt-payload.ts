@@ -1,5 +1,5 @@
-import { IsEnum, IsIn, IsUUID } from 'class-validator';
-import { type ApiTokenPrivilege } from '@modules/api-tokens/api-token.entity';
+import { IsEnum, IsUUID } from 'class-validator';
+import { ApiTokenPrivilege, ApiTokenType } from '@modules/api-tokens/api-token.entity';
 import { UserType } from '@modules/users/user.entity';
 
 export class JwtPayload {
@@ -14,4 +14,7 @@ export class JwtPayload {
 
   @IsEnum(ApiTokenPrivilege)
   privilege!: ApiTokenPrivilege;
+
+  @IsEnum(ApiTokenType)
+  type!: ApiTokenType;
 }

@@ -5,6 +5,7 @@ import { User, UserType } from '@modules/users/user.entity';
 import { CryptoService } from '@common/crypto/crypto.service';
 import { ApiToken, ApiTokenPrivilege, ApiTokenType } from './api-token.entity';
 import { RequestTokenDto } from './dto/request-token.dto';
+import ms from 'ms';
 
 const PRIVILEGE_RANK: Record<ApiTokenPrivilege, number> = {
   [ApiTokenPrivilege.USER]: 1,
@@ -38,7 +39,34 @@ export class ApiTokensService {
     return maxPrivilege;
   }
 
-  async issueToken(dto: RequestTokenDto, reqAuthId: string) {
+  async createToken(user: User, privilege: ApiTokenPrivilege, type: ApiTokenType) {
+    const expirationTime = '180d'; // TODO: Change maybe?
+    const expirationDate = new Date(Date.now() + ms(expirationTime));
+
+    const jwtToken = this.cryptoService.generateJwtToken(
+      {
+        userId: user.id,
+        userType: user.type,
+        tokenId: crypto.randomUUID(),
+        privilege,
+        type,
+      },
+      expirationTime,
+    );
+
+    const token = this.apiTokensRepo.create({
+      userId: user.id,
+      privilege,
+      type,
+      tokenHash: jwtToken,
+      expiresAt: expirationDate,
+      revokedAt: null,
+    });
+    await this.apiTokensRepo.save(token);
+    return token;
+  }
+
+  async createApiToken(dto: RequestTokenDto, reqAuthId: string) {
     const user = await this.usersRepo.findOne({
       where: { id: dto.userId },
     });
@@ -50,33 +78,18 @@ export class ApiTokensService {
       throw new UnauthorizedException('Invalid user');
     }
 
-    this.ensureAllowedPrivilege(user.type, dto.privilege ?? 'user');
+    this.ensureAllowedPrivilege(user.type, dto.privilege ?? ApiTokenPrivilege.USER);
 
-    const privilege = dto.privilege ?? 'user';
+    const privilege = dto.privilege ?? ApiTokenPrivilege.USER;
 
-    const jwtToken = this.cryptoService.generateJwtToken(
-      {
-        userId: user.id,
-        userType: user.type,
-        tokenId: crypto.randomUUID(),
-        privilege,
-      },
-      '180d',
-    );
-
-    const token = this.apiTokensRepo.create({
-      userId: user.id,
-      privilege,
-      tokenHash: jwtToken,
-      expiresAt: null,
-      revokedAt: null,
-    });
-    await this.apiTokensRepo.save(token);
+    const token = await this.createToken(user, privilege, ApiTokenType.API);
 
     return {
-      token: jwtToken,
+      token,
       privilege: token.privilege,
+      expiresAt: token.expiresAt,
       userId: user.id,
+      type: token.type,
     };
   }
 

@@ -18,6 +18,6 @@ export class ApiTokensController {
     if (!req.apiAuth) {
       throw new UnauthorizedException('Missing auth context');
     }
-    return this.apiTokensService.issueToken(dto, req.apiAuth?.userId);
+    return this.apiTokensService.createApiToken(dto, req.apiAuth?.userId);
   }
 }
