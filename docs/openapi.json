@@ -1,0 +1,363 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/api/v1": {
+      "get": {
+        "operationId": "AppController_getHello_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "App"
+        ]
+      }
+    },
+    "/api/v1/users": {
+      "post": {
+        "operationId": "UsersController_createUser_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUserDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/api/v1/tokens": {
+      "post": {
+        "operationId": "ApiTokensController_createToken_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestTokenDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Tokens"
+        ]
+      }
+    },
+    "/api/v1/transactions/transfer": {
+      "post": {
+        "operationId": "TransactionsController_transfer_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransferDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Transactions"
+        ]
+      }
+    },
+    "/api/v1/transactions/purchase-item": {
+      "post": {
+        "operationId": "TransactionsController_purchaseItem_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PurchaseItemDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Transactions"
+        ]
+      }
+    },
+    "/api/v1/accounts": {
+      "post": {
+        "operationId": "AccountsController_createAccount_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAccountDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Accounts"
+        ]
+      }
+    },
+    "/api/v1/admin/mint": {
+      "post": {
+        "operationId": "AdminController_mint_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MintDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Admin"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "Classurency API",
+    "description": "API documentation for the Classurency backend.",
+    "version": "0.0.1",
+    "contact": {}
+  },
+  "tags": [],
+  "servers": [],
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "token",
+        "type": "http"
+      }
+    },
+    "schemas": {
+      "CreateUserDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Ada Lovelace",
+            "maxLength": 128,
+            "description": "User display name."
+          },
+          "password": {
+            "type": "string",
+            "example": "a-long-random-secret",
+            "minLength": 8,
+            "maxLength": 128,
+            "description": "Account password for API login (stored with Argon2id; distinct from the generated card PIN)."
+          }
+        },
+        "required": [
+          "name",
+          "password"
+        ]
+      },
+      "RequestTokenDto": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "example": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+            "format": "uuid",
+            "description": "Target user id."
+          },
+          "privilege": {
+            "type": "string",
+            "example": "provider",
+            "enum": [
+              "admin",
+              "provider",
+              "user"
+            ],
+            "description": "Requested privilege for the issued token (defaults to user)."
+          }
+        },
+        "required": [
+          "userId"
+        ]
+      },
+      "TransferDto": {
+        "type": "object",
+        "properties": {
+          "nfcCardUid": {
+            "type": "string",
+            "example": "04A224B1C83A80",
+            "maxLength": 128,
+            "description": "NFC card UID (as read from the card reader)."
+          },
+          "toAccountId": {
+            "type": "string",
+            "example": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+            "format": "uuid",
+            "description": "Recipient account id (bank, vending machine, or another account)."
+          },
+          "value": {
+            "type": "number",
+            "example": 2.5,
+            "minimum": 0.01,
+            "description": "Value of the transfer in currency units."
+          },
+          "description": {
+            "type": "string",
+            "example": "Cafeteria lunch",
+            "maxLength": 500,
+            "description": "Optional purchase description."
+          },
+          "pin": {
+            "type": "string",
+            "example": "1234",
+            "minLength": 4,
+            "maxLength": 4,
+            "description": "4-digit PIN set on the card."
+          },
+          "encryptedPrivateKeyFromCard": {
+            "type": "string",
+            "example": "BASE64_ENCRYPTED_PRIVATE_KEY_FROM_CARD==",
+            "description": "Encrypted private key blob read from the NFC card (base64 string)."
+          }
+        },
+        "required": [
+          "nfcCardUid",
+          "toAccountId",
+          "value",
+          "pin",
+          "encryptedPrivateKeyFromCard"
+        ]
+      },
+      "PurchaseItemDto": {
+        "type": "object",
+        "properties": {
+          "nfcCardUid": {
+            "type": "string",
+            "example": "04A224B1C83A80",
+            "maxLength": 128,
+            "description": "NFC card UID (as read from the card reader)."
+          },
+          "pin": {
+            "type": "string",
+            "example": "1234",
+            "minLength": 4,
+            "maxLength": 4,
+            "description": "4-digit PIN set on the card."
+          },
+          "encryptedPrivateKeyFromCard": {
+            "type": "string",
+            "example": "BASE64_ENCRYPTED_PRIVATE_KEY_FROM_CARD==",
+            "description": "Encrypted private key blob read from the NFC card (base64 string)."
+          },
+          "providerAccountId": {
+            "type": "string",
+            "example": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+            "format": "uuid",
+            "description": "Provider account id (vending machine, cafeteria, etc.) that sells the item."
+          },
+          "description": {
+            "type": "string",
+            "example": "Cafeteria lunch",
+            "maxLength": 500,
+            "description": "Optional purchase description."
+          }
+        },
+        "required": [
+          "nfcCardUid",
+          "pin",
+          "encryptedPrivateKeyFromCard",
+          "providerAccountId"
+        ]
+      },
+      "CreateAccountDto": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "example": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+            "format": "uuid",
+            "description": "User id."
+          }
+        },
+        "required": [
+          "userId"
+        ]
+      },
+      "MintDto": {
+        "type": "object",
+        "properties": {
+          "accountId": {
+            "type": "string",
+            "example": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+            "format": "uuid",
+            "description": "Target account id."
+          },
+          "amount": {
+            "type": "number",
+            "example": 10,
+            "minimum": 0.01,
+            "description": "Amount to mint."
+          },
+          "description": {
+            "type": "string",
+            "example": "Initial top-up",
+            "maxLength": 500,
+            "description": "Optional mint description."
+          }
+        },
+        "required": [
+          "accountId",
+          "amount"
+        ]
+      }
+    }
+  }
+}
