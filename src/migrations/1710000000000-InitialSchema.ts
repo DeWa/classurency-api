@@ -18,12 +18,14 @@ export class InitialSchema1710000000000 implements MigrationInterface {
       CREATE TABLE IF NOT EXISTS "users" (
         "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
         "name" varchar(128) NOT NULL,
+        "userName" varchar(128) NOT NULL UNIQUE,
         "passwordHash" text NOT NULL,
         "type" "user_type" NOT NULL DEFAULT 'user',
         "createdAt" timestamptz NOT NULL DEFAULT now(),
         "updatedAt" timestamptz NOT NULL DEFAULT now()
       )
     `);
+    await queryRunner.query(`CREATE UNIQUE INDEX IF NOT EXISTS "IDX_users_userName" ON "users" ("userName")`);
 
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "accounts" (
@@ -192,6 +194,7 @@ export class InitialSchema1710000000000 implements MigrationInterface {
     await queryRunner.query(`DROP INDEX IF EXISTS "IDX_accounts_userId"`);
     await queryRunner.query(`DROP TABLE IF EXISTS "accounts"`);
 
+    await queryRunner.query(`DROP INDEX IF EXISTS "IDX_users_userName"`);
     await queryRunner.query(`DROP TABLE IF EXISTS "users"`);
 
     await queryRunner.query(`DROP TYPE IF EXISTS "user_type"`);
