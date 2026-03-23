@@ -5,6 +5,10 @@ import { CryptoService } from '@common/crypto/crypto.service';
 import { User, UserType } from './user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserRequestDto } from './dto/update-user.dto';
+import {
+  isUserNameAlreadyExistsError,
+  UserNameAlreadyExistsException,
+} from './errors/user-name-already-exists.exception';
 
 @Injectable()
 export class UsersService {
@@ -23,15 +27,20 @@ export class UsersService {
    */
   async createUser(name: string, userName: string, password: string) {
     const passwordHash = await this.cryptoService.hashPassword(password);
-
     const user = this.usersRepo.create({
       name,
       userName,
       passwordHash,
       type: UserType.USER,
     });
-    await this.usersRepo.save(user);
-
+    try {
+      await this.usersRepo.save(user);
+    } catch (error: unknown) {
+      if (isUserNameAlreadyExistsError(error)) {
+        throw new UserNameAlreadyExistsException();
+      }
+      throw error;
+    }
     return {
       id: user.id,
       name: user.name,

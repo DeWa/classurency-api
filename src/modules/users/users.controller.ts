@@ -4,7 +4,7 @@ import {
   Get,
   Param,
   Post,
-  Put,
+  Patch,
   Req,
   UnauthorizedException,
   UseGuards,
@@ -27,25 +27,25 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Post()
+  @UseGuards(ApiTokenGuard)
+  @RequirePrivilege(ApiTokenPrivilege.ADMIN)
   @ApiOperation({
     summary: 'Create a new user',
     description: 'Create a new user with the given information. Only admin can create users',
   })
   @ApiResponse({ status: 201, description: 'User created successfully', type: CreateUserResponseDto })
-  @UseGuards(ApiTokenGuard)
-  @RequirePrivilege(ApiTokenPrivilege.ADMIN)
   async createUser(@Body() dto: CreateUserDto): Promise<CreateUserResponseDto> {
     return await this.usersService.createUserAsAdmin(dto);
   }
 
-  @Put(':id')
+  @Patch(':id')
+  @UseGuards(ApiTokenGuard)
+  @RequirePrivilege(ApiTokenPrivilege.USER)
   @ApiOperation({
     summary: 'Update a user',
     description: 'Update a user with the given information',
   })
   @ApiResponse({ status: 200, description: 'User updated successfully', type: UpdateUserRequestDto })
-  @UseGuards(ApiTokenGuard)
-  @RequirePrivilege(ApiTokenPrivilege.USER)
   async updateUser(
     @Param('id') userId: string,
     @Body() dto: UpdateUserRequestDto,
@@ -60,13 +60,13 @@ export class UsersController {
 
   @UseInterceptors(new ResponseDtoOmitter(GetUserResponseDto))
   @Get('me')
+  @UseGuards(ApiTokenGuard)
+  @RequirePrivilege(ApiTokenPrivilege.USER)
   @ApiOperation({
     summary: 'Get the current user',
     description: 'Get the current user',
   })
   @ApiResponse({ status: 200, description: 'User retrieved successfully', type: GetUserResponseDto })
-  @UseGuards(ApiTokenGuard)
-  @RequirePrivilege(ApiTokenPrivilege.USER)
   async getCurrentUser(@Req() req: Request & { apiAuth?: ApiAuthContext }): Promise<GetUserResponseDto> {
     const userId = req.apiAuth?.userId;
     if (!userId) {
@@ -77,14 +77,14 @@ export class UsersController {
 
   @UseInterceptors(new ResponseDtoOmitter(GetUserResponseDto))
   @Get(':id')
+  @UseGuards(ApiTokenGuard)
+  @RequirePrivilege(ApiTokenPrivilege.ADMIN)
   @ApiOperation({
     summary: 'Get a user',
     description: 'Get a user with the given ID',
   })
   @ApiParam({ name: 'id', description: 'User ID', type: GetUserRequestDto })
   @ApiResponse({ status: 200, description: 'User retrieved successfully', type: GetUserResponseDto })
-  @UseGuards(ApiTokenGuard)
-  @RequirePrivilege(ApiTokenPrivilege.ADMIN)
   async getUser(@Param() params: GetUserRequestDto): Promise<GetUserResponseDto> {
     const userId = params.id;
     return await this.usersService.getUser(userId);
