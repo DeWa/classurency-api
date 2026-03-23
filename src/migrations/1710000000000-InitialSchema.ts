@@ -107,9 +107,6 @@ export class InitialSchema1710000000000 implements MigrationInterface {
     await queryRunner.query(
       `CREATE INDEX IF NOT EXISTS "IDX_transactions_toAccountId" ON "transactions" ("toAccountId")`,
     );
-    await queryRunner.query(
-      `CREATE INDEX IF NOT EXISTS "IDX_transactions_nfcCardUid" ON "transactions" ("nfcCardUid")`,
-    );
 
     await queryRunner.query(`DO $$
       BEGIN
@@ -182,7 +179,6 @@ export class InitialSchema1710000000000 implements MigrationInterface {
     await queryRunner.query(`DROP TABLE IF EXISTS "api_tokens"`);
     await queryRunner.query(`DROP TYPE IF EXISTS "api_token_type"`);
 
-    await queryRunner.query(`DROP INDEX IF EXISTS "IDX_transactions_nfcCardUid"`);
     await queryRunner.query(`DROP INDEX IF EXISTS "IDX_transactions_toAccountId"`);
     await queryRunner.query(`DROP INDEX IF EXISTS "IDX_transactions_blockId"`);
     await queryRunner.query(`DROP INDEX IF EXISTS "IDX_transactions_createdAt"`);

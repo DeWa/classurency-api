@@ -85,7 +85,6 @@ export class TransactionsService {
       createdAt: tx.createdAt,
       fromAccountId: tx.account?.id ?? null,
       toAccountId: tx.toAccount?.id ?? null,
-      nfcCardUid: tx.nfcCardUid,
     };
   }
 
@@ -127,7 +126,6 @@ export class TransactionsService {
       const tx = this.dataSource.manager.create(Transaction, {
         account: undefined,
         toAccount: account,
-        nfcCardUid: null,
         amount: amount,
         type: 'MINT',
         description: description ?? null,
@@ -152,7 +150,6 @@ export class TransactionsService {
       toAccountId: transferData.toAccountId,
       amount: transferData.value,
       description: transferData.description,
-      nfcCardUid: transferData.nfcCardUid,
       pin: transferData.pin,
       encryptedPrivateKeyFromCard: transferData.encryptedPrivateKeyFromCard,
       ipAddress,
@@ -166,7 +163,6 @@ export class TransactionsService {
       toAccountId: string;
       amount: number;
       description?: string;
-      nfcCardUid?: string;
       pin: string;
       encryptedPrivateKeyFromCard: string;
       ipAddress: string;
@@ -179,7 +175,6 @@ export class TransactionsService {
       toAccountId,
       amount,
       description,
-      nfcCardUid,
       pin,
       encryptedPrivateKeyFromCard,
       ipAddress,
@@ -188,18 +183,14 @@ export class TransactionsService {
       throw new BadRequestException('Amount must be positive');
     }
 
-    if (!fromAccountId && !nfcCardUid) {
-      throw new BadRequestException('Missing payer account or NFC card UID');
+    if (!fromAccountId) {
+      throw new BadRequestException('Missing payer account');
     }
 
     let payerAccount: Account | null = null;
     if (fromAccountId) {
       payerAccount = await this.accountsRepo.findOne({
         where: { id: fromAccountId },
-      });
-    } else {
-      payerAccount = await this.accountsRepo.findOne({
-        where: { nfcCardUid: nfcCardUid },
       });
     }
 
@@ -254,7 +245,6 @@ export class TransactionsService {
         kind: 'PURCHASE',
         fromUserId: payerLocked.id,
         toUserId: recipientLocked.id,
-        nfcCardUid: nfcCardUid,
         amount,
         description: description ?? null,
         timestamp: Date.now(),
@@ -267,7 +257,6 @@ export class TransactionsService {
       const createdTx = manager.create(Transaction, {
         account: payerLocked,
         toAccount: recipientLocked,
-        nfcCardUid: nfcCardUid,
         amount,
         type: 'PURCHASE',
         description: description ?? null,
@@ -289,7 +278,6 @@ export class TransactionsService {
 
   async purchaseItems(
     accountData: {
-      nfcCardUid: string;
       pin: string;
       encryptedPrivateKeyFromCard: string;
     },
@@ -329,7 +317,6 @@ export class TransactionsService {
             toAccountId: providerAccountId,
             amount: totalValue,
             description: descriptionWithItems,
-            nfcCardUid: accountData.nfcCardUid,
             pin: accountData.pin,
             encryptedPrivateKeyFromCard: accountData.encryptedPrivateKeyFromCard,
             ipAddress,

@@ -16,16 +16,6 @@ import { Type } from 'class-transformer';
 
 export class PurchaseItemDto {
   @ApiProperty({
-    example: '04A224B1C83A80',
-    maxLength: 128,
-    description: 'NFC card UID (as read from the card reader).',
-  })
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(128)
-  nfcCardUid!: string;
-
-  @ApiProperty({
     example: '1234',
     minLength: 4,
     maxLength: 4,

@@ -114,7 +114,6 @@ export class TransactionsController {
     }
     return this.transactionsService.purchaseItems(
       {
-        nfcCardUid: dto.nfcCardUid,
         pin: dto.pin,
         encryptedPrivateKeyFromCard: dto.encryptedPrivateKeyFromCard,
       },

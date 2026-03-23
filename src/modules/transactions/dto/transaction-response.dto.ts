@@ -42,12 +42,4 @@ export class TransactionResponseDto {
   @ValidateIf((o: TransactionResponseDto) => o.toAccountId !== null)
   @IsUUID()
   toAccountId!: string | null;
-
-  @ApiPropertyOptional({
-    description: 'NFC card UID when applicable',
-    nullable: true,
-  })
-  @IsOptional()
-  @IsString()
-  nfcCardUid!: string | null;
 }

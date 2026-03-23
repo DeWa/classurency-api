@@ -14,7 +14,7 @@ import { Account } from '@modules/accounts/account.entity';
 export type TransactionType = 'MINT' | 'PURCHASE';
 
 @Entity('transactions')
-@Check(`"type" = 'MINT' OR "account" IS NOT NULL`)
+@Check(`"type" = 'MINT' OR "accountId" IS NOT NULL`)
 export class Transaction {
   @PrimaryGeneratedColumn()
   id!: number;
@@ -27,10 +27,6 @@ export class Transaction {
   @ManyToOne(() => Account)
   @JoinColumn({ name: 'toAccountId' })
   toAccount!: Account | null;
-
-  // NFC UID used to authenticate the payer (when applicable).
-  @Column({ type: 'varchar', length: 128, nullable: true })
-  nfcCardUid!: string | null;
 
   @Column({ type: 'numeric', precision: 18, scale: 2 })
   amount!: number;
