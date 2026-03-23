@@ -1,16 +1,19 @@
 import {
   Body,
   Controller,
+  DefaultValuePipe,
   Get,
   Param,
+  ParseBoolPipe,
   Post,
   Patch,
+  Query,
   Req,
   UnauthorizedException,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { RequirePrivilege } from '@common/guards/require-privilege.decorator';
 import { ApiTokenGuard } from '@common/guards/api-token.guard';
 import { UsersService } from './users.service';
@@ -68,13 +71,22 @@ export class UsersController {
     summary: 'Get the current user',
     description: 'Get the current user',
   })
+  @ApiQuery({
+    name: 'includeAccounts',
+    required: false,
+    type: Boolean,
+    description: 'When true, includes each account id, balance, lock state, public key, and NFC UID (no secrets).',
+  })
   @ApiResponse({ status: 200, description: 'User retrieved successfully', type: GetUserResponseDto })
-  async getCurrentUser(@Req() req: Request & { apiAuth?: ApiAuthContext }): Promise<GetUserResponseDto> {
+  async getCurrentUser(
+    @Query('includeAccounts', new DefaultValuePipe(false), ParseBoolPipe) includeAccounts: boolean,
+    @Req() req: Request & { apiAuth?: ApiAuthContext },
+  ): Promise<GetUserResponseDto> {
     const userId = req.apiAuth?.userId;
     if (!userId) {
       throw new UnauthorizedException('Missing auth context');
     }
-    return await this.usersService.getUser(userId);
+    return await this.usersService.getUser(userId, { includeAccounts });
   }
 
   @UseInterceptors(new ResponseDtoOmitter(GetUserResponseDto))
@@ -86,9 +98,18 @@ export class UsersController {
     description: 'Get a user with the given ID',
   })
   @ApiParam({ name: 'id', description: 'User ID', format: 'uuid' })
+  @ApiQuery({
+    name: 'includeAccounts',
+    required: false,
+    type: Boolean,
+    description: 'When true, includes each account id, balance, lock state, public key, and NFC UID (no secrets).',
+  })
   @ApiResponse({ status: 200, description: 'User retrieved successfully', type: GetUserResponseDto })
-  async getUser(@Param() params: GetUserRequestDto): Promise<GetUserResponseDto> {
+  async getUser(
+    @Param() params: GetUserRequestDto,
+    @Query('includeAccounts', new DefaultValuePipe(false), ParseBoolPipe) includeAccounts: boolean,
+  ): Promise<GetUserResponseDto> {
     const userId = params.id;
-    return await this.usersService.getUser(userId);
+    return await this.usersService.getUser(userId, { includeAccounts });
   }
 }

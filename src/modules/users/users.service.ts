@@ -2,7 +2,9 @@ import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/commo
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CryptoService } from '@common/crypto/crypto.service';
+import { Account } from '@modules/accounts/account.entity';
 import { User, UserType } from './user.entity';
+import { UserAccountSummaryDto } from './dto/user-account-summary.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserRequestDto } from './dto/update-user.dto';
 import {
@@ -84,11 +86,34 @@ export class UsersService {
     return this.usersRepo.save(updatedUser);
   }
 
-  async getUser(userId: string): Promise<User> {
-    const user = await this.usersRepo.findOne({ where: { id: userId } });
+  /**
+   * Load a user. Optionally loads account summaries (no secrets) for each account.
+   */
+  async getUser(userId: string, options?: { includeAccounts?: boolean }): Promise<User> {
+    const user = await this.usersRepo.findOne({
+      where: { id: userId },
+      relations: options?.includeAccounts ? ['accounts'] : [],
+    });
     if (!user) {
       throw new NotFoundException('User not found');
     }
-    return user;
+    if (!options?.includeAccounts) {
+      return user;
+    }
+    return Object.assign(user, {
+      accounts: (user.accounts ?? []).map((account) => this.mapAccountToSummary(account)),
+    });
+  }
+
+  private mapAccountToSummary(account: Account): UserAccountSummaryDto {
+    return {
+      id: account.id,
+      nfcCardUid: account.nfcCardUid,
+      publicKeyHex: account.publicKeyHex,
+      balance: Number(account.balance),
+      isLocked: account.isLocked,
+      createdAt: account.createdAt,
+      updatedAt: account.updatedAt,
+    };
   }
 }

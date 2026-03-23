@@ -1,6 +1,8 @@
-import { IsEnum, IsNotEmpty, IsString, IsUUID } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsArray, IsEnum, IsNotEmpty, IsOptional, IsString, IsUUID, ValidateNested } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { UserType } from '../user.entity';
+import { UserAccountSummaryDto } from './user-account-summary.dto';
 
 export class GetUserRequestDto {
   @ApiProperty({
@@ -28,4 +30,15 @@ export class GetUserResponseDto {
   @IsEnum(UserType)
   @IsNotEmpty()
   type!: UserType;
+
+  @ApiProperty({
+    required: false,
+    type: [UserAccountSummaryDto],
+    description: 'Included when the request uses includeAccounts=true.',
+  })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => UserAccountSummaryDto)
+  accounts?: UserAccountSummaryDto[];
 }
