@@ -3,13 +3,23 @@
   "paths": {
     "/api/v1": {
       "get": {
+        "description": "Simple endpoint to verify the API is running.",
         "operationId": "AppController_getHello_v1",
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "Greeting string",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string",
+                  "example": "Hello World!"
+                }
+              }
+            }
           }
         },
+        "summary": "Health / hello",
         "tags": [
           "App"
         ]
@@ -17,6 +27,7 @@
     },
     "/api/v1/users": {
       "post": {
+        "description": "Create a new user with the given information. Only admin can create users",
         "operationId": "UsersController_createUser_v1",
         "parameters": [],
         "requestBody": {
@@ -31,9 +42,136 @@
         },
         "responses": {
           "201": {
-            "description": ""
+            "description": "User created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateUserResponseDto"
+                }
+              }
+            }
           }
         },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a new user",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/api/v1/users/{id}": {
+      "patch": {
+        "description": "Update a user with the given information",
+        "operationId": "UsersController_updateUser_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "User ID",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUserRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "User updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateUserResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update a user",
+        "tags": [
+          "Users"
+        ]
+      },
+      "get": {
+        "description": "Get a user with the given ID",
+        "operationId": "UsersController_getUser_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "User ID",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetUserResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get a user",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/api/v1/users/me": {
+      "get": {
+        "description": "Get the current user",
+        "operationId": "UsersController_getCurrentUser_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "User retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetUserResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get the current user",
         "tags": [
           "Users"
         ]
@@ -41,7 +179,8 @@
     },
     "/api/v1/tokens": {
       "post": {
-        "operationId": "ApiTokensController_createToken_v1",
+        "description": "Issues a new JWT for the given user (subject to caller privilege).",
+        "operationId": "ApiTokensController_createApiToken_v1",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -55,16 +194,102 @@
         },
         "responses": {
           "201": {
-            "description": ""
+            "description": "Token issued",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestTokenResponseDto"
+                }
+              }
+            }
           }
         },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Request API token",
         "tags": [
           "Tokens"
         ]
       }
     },
+    "/api/v1/transactions": {
+      "get": {
+        "description": "Returns transactions where the current user is involved (source account, destination account, or mint).",
+        "operationId": "TransactionsController_getMyTransactions_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Transactions retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TransactionResponseDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List my transactions",
+        "tags": [
+          "Transactions"
+        ]
+      }
+    },
+    "/api/v1/transactions/{id}": {
+      "get": {
+        "description": "Returns a transaction if the current user is the payer, recipient, or mint recipient.",
+        "operationId": "TransactionsController_getTransactionById_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Transaction id",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Transaction retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransactionResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Transaction not found or not accessible"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get transaction by id",
+        "tags": [
+          "Transactions"
+        ]
+      }
+    },
     "/api/v1/transactions/transfer": {
       "post": {
+        "description": "Transfer funds from the authenticated user’s NFC-backed account to a recipient account.",
         "operationId": "TransactionsController_transfer_v1",
         "parameters": [],
         "requestBody": {
@@ -79,9 +304,22 @@
         },
         "responses": {
           "201": {
-            "description": ""
+            "description": "Transaction created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransactionResponseDto"
+                }
+              }
+            }
           }
         },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Transfer funds",
         "tags": [
           "Transactions"
         ]
@@ -89,6 +327,7 @@
     },
     "/api/v1/transactions/purchase-item": {
       "post": {
+        "description": "Authenticates with the NFC card and purchases items from a provider account.",
         "operationId": "TransactionsController_purchaseItem_v1",
         "parameters": [],
         "requestBody": {
@@ -103,9 +342,22 @@
         },
         "responses": {
           "201": {
-            "description": ""
+            "description": "Purchase completed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PurchaseItemResponseDto"
+                }
+              }
+            }
           }
         },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Purchase items",
         "tags": [
           "Transactions"
         ]
@@ -113,6 +365,7 @@
     },
     "/api/v1/accounts": {
       "post": {
+        "description": "Creates an NFC-backed account for a user. Requires an admin API token.",
         "operationId": "AccountsController_createAccount_v1",
         "parameters": [],
         "requestBody": {
@@ -127,9 +380,22 @@
         },
         "responses": {
           "201": {
-            "description": ""
+            "description": "Account created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateAccountResponseDto"
+                }
+              }
+            }
           }
         },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create account",
         "tags": [
           "Accounts"
         ]
@@ -137,6 +403,7 @@
     },
     "/api/v1/admin/mint": {
       "post": {
+        "description": "Increases an account balance and records a mint transaction on the chain.",
         "operationId": "AdminController_mint_v1",
         "parameters": [],
         "requestBody": {
@@ -151,7 +418,14 @@
         },
         "responses": {
           "201": {
-            "description": ""
+            "description": "Mint applied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MintResponseDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -159,8 +433,45 @@
             "bearer": []
           }
         ],
+        "summary": "Mint currency",
         "tags": [
           "Admin"
+        ]
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "description": "Login with the given username and password",
+        "operationId": "AuthController_login_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid credentials"
+          }
+        },
+        "summary": "Login",
+        "tags": [
+          "Auth"
         ]
       }
     }
@@ -191,17 +502,120 @@
             "maxLength": 128,
             "description": "User display name."
           },
-          "password": {
+          "userName": {
             "type": "string",
-            "example": "a-long-random-secret",
-            "minLength": 8,
+            "description": "User username (letters, digits, - _ + only; no spaces)",
             "maxLength": 128,
-            "description": "Account password for API login (stored with Argon2id; distinct from the generated card PIN)."
+            "pattern": "^[-a-zA-Z0-9_+]+$"
           }
         },
         "required": [
           "name",
-          "password"
+          "userName"
+        ]
+      },
+      "CreateUserResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "User ID"
+          },
+          "name": {
+            "type": "string",
+            "description": "User name"
+          },
+          "password": {
+            "type": "string",
+            "description": "User password"
+          },
+          "type": {
+            "type": "string",
+            "description": "User type"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "password",
+          "type"
+        ]
+      },
+      "UpdateUserRequestDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Ada Lovelace",
+            "maxLength": 128,
+            "description": "User display name."
+          },
+          "password": {
+            "type": "string",
+            "example": "a-long-random-secret",
+            "minLength": 6,
+            "maxLength": 128,
+            "description": "Account password for API login (stored with Argon2id; distinct from the generated card PIN)."
+          },
+          "type": {
+            "type": "string",
+            "example": "admin",
+            "enum": [
+              "user",
+              "provider",
+              "admin"
+            ],
+            "description": "User type."
+          }
+        },
+        "required": [
+          "name",
+          "password",
+          "type"
+        ]
+      },
+      "UpdateUserResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "User ID"
+          },
+          "name": {
+            "type": "string",
+            "description": "User name"
+          },
+          "type": {
+            "type": "string",
+            "description": "User type"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "type"
+        ]
+      },
+      "GetUserResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "User ID"
+          },
+          "name": {
+            "type": "string",
+            "description": "User name"
+          },
+          "type": {
+            "type": "string",
+            "description": "User type"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "type"
         ]
       },
       "RequestTokenDto": {
@@ -226,6 +640,71 @@
         },
         "required": [
           "userId"
+        ]
+      },
+      "RequestTokenResponseDto": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIxMjM0NTY3ODkwIiwidXNlclR5cGUiOiJ1c2VyIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+            "description": "JWT token."
+          }
+        },
+        "required": [
+          "token"
+        ]
+      },
+      "TransactionResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number",
+            "description": "Transaction ID"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "MINT",
+              "PURCHASE"
+            ],
+            "description": "Transaction kind"
+          },
+          "amount": {
+            "type": "number",
+            "description": "Transaction amount"
+          },
+          "description": {
+            "type": "object",
+            "description": "Description",
+            "nullable": true
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "Creation timestamp"
+          },
+          "fromAccountId": {
+            "type": "object",
+            "description": "Source account ID (payer); null when not applicable (e.g. mint)",
+            "nullable": true
+          },
+          "toAccountId": {
+            "type": "object",
+            "description": "Destination account ID",
+            "nullable": true
+          },
+          "nfcCardUid": {
+            "type": "object",
+            "description": "NFC card UID when applicable",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "amount",
+          "createdAt"
         ]
       },
       "TransferDto": {
@@ -308,13 +787,51 @@
             "example": "Cafeteria lunch",
             "maxLength": 500,
             "description": "Optional purchase description."
+          },
+          "items": {
+            "description": "Item ids (UUIDs) to purchase",
+            "example": [
+              "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+            ],
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "a"
+              },
+              "format": "uuid"
+            },
+            "type": "array"
           }
         },
         "required": [
           "nfcCardUid",
           "pin",
           "encryptedPrivateKeyFromCard",
-          "providerAccountId"
+          "providerAccountId",
+          "items"
+        ]
+      },
+      "PurchaseItemResponseDto": {
+        "type": "object",
+        "properties": {
+          "transactionId": {
+            "type": "number",
+            "description": "Created purchase transaction id"
+          },
+          "remainingAmount": {
+            "type": "object",
+            "description": "Remaining stock per item id after the purchase (when stock is tracked).",
+            "additionalProperties": {
+              "type": "number"
+            },
+            "example": {
+              "3fa85f64-5717-4562-b3fc-2c963f66afa6": 9
+            }
+          }
+        },
+        "required": [
+          "transactionId",
+          "remainingAmount"
         ]
       },
       "CreateAccountDto": {
@@ -329,6 +846,43 @@
         },
         "required": [
           "userId"
+        ]
+      },
+      "CreateAccountResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "User ID"
+          },
+          "name": {
+            "type": "string",
+            "description": "User display name"
+          },
+          "nfcCardUid": {
+            "type": "string",
+            "description": "NFC card UID assigned to the account"
+          },
+          "publicKeyHex": {
+            "type": "string",
+            "description": "Account public key (hex)"
+          },
+          "pin": {
+            "type": "string",
+            "description": "4-digit PIN for the NFC card"
+          },
+          "encryptedPrivateKeyForCard": {
+            "type": "string",
+            "description": "Encrypted private key for programming onto the card (one-time delivery)."
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "nfcCardUid",
+          "publicKeyHex",
+          "pin",
+          "encryptedPrivateKeyForCard"
         ]
       },
       "MintDto": {
@@ -356,6 +910,55 @@
         "required": [
           "accountId",
           "amount"
+        ]
+      },
+      "MintResponseDto": {
+        "type": "object",
+        "properties": {
+          "balance": {
+            "type": "string",
+            "example": "100.00",
+            "description": "Account balance after mint (decimal string)."
+          }
+        },
+        "required": [
+          "balance"
+        ]
+      },
+      "LoginDto": {
+        "type": "object",
+        "properties": {
+          "userName": {
+            "type": "string",
+            "example": "alice_2",
+            "description": "User username (letters, digits, - _ + only; no spaces)",
+            "maxLength": 128,
+            "pattern": "^[-a-zA-Z0-9_+]+$"
+          },
+          "password": {
+            "type": "string",
+            "example": "a-long-random-secret",
+            "minLength": 6,
+            "maxLength": 128,
+            "description": "Account password for API login (Distinct from the generated card PIN)."
+          }
+        },
+        "required": [
+          "userName",
+          "password"
+        ]
+      },
+      "LoginResponseDto": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIxMjM0NTY3ODkwIiwidXNlclR5cGUiOiJ1c2VyIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+            "description": "JWT token"
+          }
+        },
+        "required": [
+          "token"
         ]
       }
     }
