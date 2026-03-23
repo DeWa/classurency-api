@@ -1,5 +1,7 @@
 import {
   IsNotEmpty,
+  IsNumber,
+  IsObject,
   IsOptional,
   IsString,
   IsUUID,
@@ -60,9 +62,34 @@ export class PurchaseItemDto {
   @MaxLength(500)
   description?: string;
 
+  @ApiProperty({
+    description: 'Item ids (UUIDs) to purchase',
+    type: [String],
+    format: 'uuid',
+    isArray: true,
+    example: ['3fa85f64-5717-4562-b3fc-2c963f66afa6'],
+  })
   @IsArray()
   @ValidateNested({ each: true })
   @ArrayMinSize(1)
   @Type(() => String)
   items!: string[];
+}
+
+/**
+ * Response body after a successful item purchase.
+ */
+export class PurchaseItemResponseDto {
+  @ApiProperty({ description: 'Created purchase transaction id' })
+  @IsNumber()
+  transactionId!: number;
+
+  @ApiProperty({
+    description: 'Remaining stock per item id after the purchase (when stock is tracked).',
+    type: 'object',
+    additionalProperties: { type: 'number' },
+    example: { '3fa85f64-5717-4562-b3fc-2c963f66afa6': 9 },
+  })
+  @IsObject()
+  remainingAmount!: Record<string, number>;
 }

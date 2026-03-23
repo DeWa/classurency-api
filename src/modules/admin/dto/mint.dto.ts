@@ -1,6 +1,16 @@
 import { IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID, MaxLength, Min } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
+/**
+ * Response body after a successful mint operation.
+ */
+export class MintResponseDto {
+  @ApiProperty({ example: '100.00', description: 'Account balance after mint (decimal string).' })
+  @IsString()
+  @IsNotEmpty()
+  balance!: string;
+}
+
 export class MintDto {
   @ApiProperty({
     example: '3fa85f64-5717-4562-b3fc-2c963f66afa6',

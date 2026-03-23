@@ -5,7 +5,7 @@ import { CryptoService } from '@common/crypto/crypto.service';
 import { User } from '@modules/users/user.entity';
 import { Account } from './account.entity';
 import { AccountAttempt } from './account-attempt.entity';
-import { CreateAccountDto } from './dto/create-account.dto';
+import { CreateAccountDto, CreateAccountResponseDto } from './dto/create-account.dto';
 import { CheckBalanceDto } from './dto/check-balance.dto';
 
 @Injectable()
@@ -20,7 +20,7 @@ export class AccountsService {
     private readonly cryptoService: CryptoService,
   ) {}
 
-  async createAccount(dto: CreateAccountDto) {
+  async createAccount(dto: CreateAccountDto): Promise<CreateAccountResponseDto> {
     const pin = this.cryptoService.generatePin();
     const pinHash = await this.cryptoService.hashPin(pin);
     const { privateKeyHex, publicKeyHex } = this.cryptoService.generateKeyPair();

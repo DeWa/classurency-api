@@ -73,7 +73,10 @@ export class TransactionsService {
     return this.mapTransactionToResponse(tx);
   }
 
-  private mapTransactionToResponse(tx: Transaction): TransactionResponseDto {
+  /**
+   * Maps a persisted transaction entity to the public API response shape.
+   */
+  mapTransactionToResponse(tx: Transaction): TransactionResponseDto {
     return {
       id: tx.id,
       type: tx.type,
