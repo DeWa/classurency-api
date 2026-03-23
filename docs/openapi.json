@@ -124,6 +124,15 @@
               "format": "uuid",
               "type": "string"
             }
+          },
+          {
+            "name": "includeAccounts",
+            "required": false,
+            "in": "query",
+            "description": "When true, includes each account id, balance, lock state, public key, and NFC UID (no secrets).",
+            "schema": {
+              "type": "boolean"
+            }
           }
         ],
         "responses": {
@@ -153,7 +162,17 @@
       "get": {
         "description": "Get the current user",
         "operationId": "UsersController_getCurrentUser_v1",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "includeAccounts",
+            "required": false,
+            "in": "query",
+            "description": "When true, includes each account id, balance, lock state, public key, and NFC UID (no secrets).",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "User retrieved successfully",
@@ -596,6 +615,49 @@
           "type"
         ]
       },
+      "UserAccountSummaryDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "nfcCardUid": {
+            "type": "object",
+            "nullable": true,
+            "description": "NFC card UID when the account is bound to a card."
+          },
+          "publicKeyHex": {
+            "type": "string",
+            "description": "Account public key (hex)."
+          },
+          "balance": {
+            "type": "number",
+            "description": "Current balance."
+          },
+          "isLocked": {
+            "type": "boolean",
+            "description": "Whether the account is locked."
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "nfcCardUid",
+          "publicKeyHex",
+          "balance",
+          "isLocked",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
       "GetUserResponseDto": {
         "type": "object",
         "properties": {
@@ -610,6 +672,13 @@
           "type": {
             "type": "string",
             "description": "User type"
+          },
+          "accounts": {
+            "description": "Included when the request uses includeAccounts=true.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UserAccountSummaryDto"
+            }
           }
         },
         "required": [
@@ -693,11 +762,6 @@
             "type": "object",
             "description": "Destination account ID",
             "nullable": true
-          },
-          "nfcCardUid": {
-            "type": "object",
-            "description": "NFC card UID when applicable",
-            "nullable": true
           }
         },
         "required": [
@@ -758,12 +822,6 @@
       "PurchaseItemDto": {
         "type": "object",
         "properties": {
-          "nfcCardUid": {
-            "type": "string",
-            "example": "04A224B1C83A80",
-            "maxLength": 128,
-            "description": "NFC card UID (as read from the card reader)."
-          },
           "pin": {
             "type": "string",
             "example": "1234",
@@ -804,7 +862,6 @@
           }
         },
         "required": [
-          "nfcCardUid",
           "pin",
           "encryptedPrivateKeyFromCard",
           "providerAccountId",
