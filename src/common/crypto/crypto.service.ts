@@ -9,6 +9,14 @@ import { plainToInstance } from 'class-transformer';
 
 import { JwtPayload } from './jwt-payload';
 
+/**
+ * @noble/secp256k1 v3 leaves sync hash implementations unset; RFC6979 signing needs SHA-256 and HMAC-SHA256.
+ */
+secp256k1.hashes.sha256 = (message: Uint8Array): Uint8Array =>
+  new Uint8Array(crypto.createHash('sha256').update(message).digest());
+secp256k1.hashes.hmacSha256 = (key: Uint8Array, message: Uint8Array): Uint8Array =>
+  new Uint8Array(crypto.createHmac('sha256', key).update(message).digest());
+
 export interface GeneratedKeyPair {
   privateKeyHex: string;
   publicKeyHex: string;
@@ -131,7 +139,7 @@ export class CryptoService {
     const json = JSON.stringify(payload);
     const hash = crypto.createHash('sha256').update(json).digest();
     const privateKey = Uint8Array.from(Buffer.from(privateKeyHex, 'hex'));
-    const signature = secp256k1.sign(hash, privateKey);
+    const signature = secp256k1.sign(new Uint8Array(hash), privateKey, { prehash: false });
     return Buffer.from(signature).toString('hex');
   }
 

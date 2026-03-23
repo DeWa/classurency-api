@@ -108,9 +108,9 @@ export class TransactionsService {
     }
 
     await this.dataSource.transaction(async (manager) => {
-      const newBalance = account.balance + amount;
+      const newBalance = Number(account.balance) + amount;
       account.balance = newBalance;
-      await this.accountsRepo.save(account);
+      await manager.save(Account, account);
 
       const payload = {
         kind: 'MINT',
@@ -123,7 +123,7 @@ export class TransactionsService {
       const signature = this.cryptoService.signPayload(storedPrivateKey, payload);
 
       const txPayload = JSON.stringify(payload);
-      const tx = this.dataSource.manager.create(Transaction, {
+      const tx = manager.create(Transaction, {
         account: undefined,
         toAccount: account,
         amount: amount,
@@ -135,7 +135,7 @@ export class TransactionsService {
       await manager.save(Transaction, tx);
 
       const txHash = this.blockchainService.computeTxHash(txPayload, signature);
-      const block = await this.blockchainService.appendBlockForTxHash(txHash);
+      const block = await this.blockchainService.appendBlockForTxHash(txHash, manager);
       tx.block = block;
       await manager.save(Transaction, tx);
     });
@@ -230,13 +230,13 @@ export class TransactionsService {
         throw new BadRequestException('Recipient account not found');
       }
 
-      const currentBalance = payerLocked.balance;
+      const currentBalance = Number(payerLocked.balance);
       if (currentBalance < amount) {
         throw new BadRequestException('Insufficient balance');
       }
 
       payerLocked.balance = currentBalance - amount;
-      recipientLocked.balance = recipientLocked.balance + amount;
+      recipientLocked.balance = Number(recipientLocked.balance) + amount;
 
       await manager.save(Account, payerLocked);
       await manager.save(Account, recipientLocked);

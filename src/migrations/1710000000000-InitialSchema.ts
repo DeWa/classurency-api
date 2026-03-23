@@ -76,9 +76,8 @@ export class InitialSchema1710000000000 implements MigrationInterface {
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "transactions" (
         "id" serial PRIMARY KEY,
-        "accountId" uuid NOT NULL,
-        "toAccountId" uuid NULL,
-        "nfcCardUid" varchar(128) NULL,
+        "accountId" uuid NULL,
+        "toAccountId" uuid NOT NULL,
         "amount" numeric(18,2) NOT NULL,
         "type" varchar(16) NOT NULL,
         "description" text NULL,
@@ -86,9 +85,9 @@ export class InitialSchema1710000000000 implements MigrationInterface {
         "blockchainSignature" varchar(130) NOT NULL,
         "blockId" uuid NULL,
         "createdAt" timestamptz NOT NULL DEFAULT now(),
-        CONSTRAINT "FK_transactions_account" FOREIGN KEY ("accountId") REFERENCES "accounts"("id") ON DELETE RESTRICT ON UPDATE CASCADE,
-        CONSTRAINT "FK_transactions_block" FOREIGN KEY ("blockId") REFERENCES "blocks"("id") ON DELETE SET NULL ON UPDATE CASCADE,
-        CONSTRAINT "FK_transactions_toAccount" FOREIGN KEY ("toAccountId") REFERENCES "accounts"("id") ON DELETE RESTRICT ON UPDATE CASCADE,
+        CONSTRAINT "FK_transactions_account" FOREIGN KEY ("accountId") REFERENCES "accounts"("id"),
+        CONSTRAINT "FK_transactions_block" FOREIGN KEY ("blockId") REFERENCES "blocks"("id"),
+        CONSTRAINT "FK_transactions_toAccount" FOREIGN KEY ("toAccountId") REFERENCES "accounts"("id"),
         CONSTRAINT "chk_complex_logic" CHECK (
            CASE
              WHEN "type" = 'MINT' THEN "accountId" IS NULL
