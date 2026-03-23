@@ -39,6 +39,7 @@ export class AccountsService {
     const account = this.accountsRepo.create({
       userId: user.id,
       pinHash,
+      nfcCardUid,
       publicKeyHex,
       encryptedPrivateKey,
       balance: 0,
