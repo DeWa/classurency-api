@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, Repository } from 'typeorm';
 import { CryptoService } from '@common/crypto/crypto.service';
@@ -9,11 +9,13 @@ import { ItemsService } from '@modules/items/items.service';
 import { ApiAuthContext } from '@common/guards/api-token.guard';
 import { Transaction } from './transaction.entity';
 import { TransferDto } from './dto/transfer.dto';
+import { TransactionResponseDto } from './dto/transaction-response.dto';
 
 @Injectable()
 export class TransactionsService {
   constructor(
     @InjectRepository(Transaction)
+    private readonly transactionsRepo: Repository<Transaction>,
     @InjectRepository(Account)
     private readonly accountsRepo: Repository<Account>,
     private readonly cryptoService: CryptoService,
@@ -22,6 +24,67 @@ export class TransactionsService {
     private readonly itemsService: ItemsService,
     private readonly dataSource: DataSource,
   ) {}
+
+  /**
+   * Lists transactions where the authenticated user is the payer, recipient, or mint recipient.
+   *
+   * @param userId - The ID of the user.
+   * @param limit - The number of transactions to return.
+   * @param offset - The offset of the transactions to return.
+   * @returns Transactions ordered by newest first.
+   */
+  async findTransactionsForUser(
+    userId: string,
+    limit: number = 10,
+    offset: number = 0,
+  ): Promise<TransactionResponseDto[]> {
+    const rows = await this.transactionsRepo
+      .createQueryBuilder('tx')
+      .leftJoinAndSelect('tx.account', 'fromAccount')
+      .leftJoinAndSelect('tx.toAccount', 'toAccount')
+      .where('fromAccount.userId = :userId OR toAccount.userId = :userId', { userId })
+      .limit(limit)
+      .offset(offset)
+      .orderBy('tx.createdAt', 'DESC')
+      .getMany();
+    return rows.map((tx) => this.mapTransactionToResponse(tx));
+  }
+
+  /**
+   * Returns a transaction by id if the user is the payer or recipient (or mint recipient).
+   *
+   * @param transactionId - Primary key of the transaction.
+   * @param userId - The ID of the requesting user.
+   * @returns The transaction payload.
+   */
+  async findTransactionByIdForUser(transactionId: number, userId: string): Promise<TransactionResponseDto> {
+    const tx = await this.transactionsRepo.findOne({
+      where: { id: transactionId },
+      relations: ['account', 'toAccount'],
+    });
+    if (!tx) {
+      throw new NotFoundException('Transaction not found');
+    }
+    const isUserFromAccount = tx.account?.userId === userId;
+    const isUserToAccount = tx.toAccount?.userId === userId;
+    if (!isUserFromAccount && !isUserToAccount) {
+      throw new NotFoundException('Transaction not found');
+    }
+    return this.mapTransactionToResponse(tx);
+  }
+
+  private mapTransactionToResponse(tx: Transaction): TransactionResponseDto {
+    return {
+      id: tx.id,
+      type: tx.type,
+      amount: Number(tx.amount),
+      description: tx.description,
+      createdAt: tx.createdAt,
+      fromAccountId: tx.account?.id ?? null,
+      toAccountId: tx.toAccount?.id ?? null,
+      nfcCardUid: tx.nfcCardUid,
+    };
+  }
 
   /**
    *
@@ -79,7 +142,7 @@ export class TransactionsService {
     return { balance: Number(account.balance).toFixed(2) };
   }
 
-  async transfer(transferData: TransferDto, apiAuth: ApiAuthContext, ipAddress: string) {
+  async transfer(transferData: TransferDto, apiAuth: ApiAuthContext, ipAddress: string): Promise<Transaction> {
     return this.transferToAccount({
       requesterUserId: apiAuth.userId,
       fromAccountId: undefined,
