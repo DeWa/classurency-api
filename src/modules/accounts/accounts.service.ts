@@ -7,6 +7,7 @@ import { Account } from './account.entity';
 import { AccountAttempt } from './account-attempt.entity';
 import { CreateAccountDto, CreateAccountResponseDto } from './dto/create-account.dto';
 import { CheckBalanceDto } from './dto/check-balance.dto';
+import * as crypto from 'node:crypto';
 
 @Injectable()
 export class AccountsService {
