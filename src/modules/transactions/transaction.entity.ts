@@ -35,17 +35,17 @@ export class Transaction {
   type!: TransactionType;
 
   @Column({ type: 'text', nullable: true })
-  description!: string | null;
+  description?: string;
 
   @Column({ type: 'text' })
-  blockchainPayload!: string;
+  txHash!: string;
+
+  @OneToOne(() => Block)
+  @JoinColumn({ name: 'blockId' })
+  block!: Block;
 
   @Column({ type: 'varchar', length: 130 })
   blockchainSignature!: string;
-
-  @OneToOne(() => Block, { nullable: true })
-  @JoinColumn({ name: 'blockId' })
-  block!: Block | null;
 
   @CreateDateColumn()
   createdAt!: Date;

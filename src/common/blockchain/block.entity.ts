@@ -9,15 +9,15 @@ export class Block {
   @Column({ type: 'int' })
   height!: number;
 
-  @Column({ type: 'varchar', length: 64 })
+  @Column({ type: 'text' })
   prevHash!: string;
 
   @Index({ unique: true })
-  @Column({ type: 'varchar', length: 64 })
-  hash!: string;
+  @Column({ type: 'text' })
+  blockHash!: string;
 
-  @Column({ type: 'varchar', length: 64 })
-  txHash!: string;
+  @Column({ type: 'text' })
+  merkleRoot!: string;
 
   @CreateDateColumn()
   createdAt!: Date;

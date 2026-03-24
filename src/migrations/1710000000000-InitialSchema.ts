@@ -72,9 +72,9 @@ export class InitialSchema1710000000000 implements MigrationInterface {
       CREATE TABLE IF NOT EXISTS "blocks" (
         "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
         "height" bigint NOT NULL,
-        "prevHash" varchar(64) NOT NULL,
-        "hash" varchar(64) NOT NULL,
-        "txHash" varchar(64) NOT NULL,
+        "prevHash" text NOT NULL,
+        "blockHash" text NOT NULL,
+        "merkleRoot" text NOT NULL,
         "createdAt" timestamptz NOT NULL DEFAULT now()
       )
     `);
@@ -85,7 +85,7 @@ export class InitialSchema1710000000000 implements MigrationInterface {
     );
 
     await queryRunner.query(`CREATE UNIQUE INDEX IF NOT EXISTS "IDX_blocks_height" ON "blocks" ("height")`);
-    await queryRunner.query(`CREATE UNIQUE INDEX IF NOT EXISTS "IDX_blocks_hash" ON "blocks" ("hash")`);
+    await queryRunner.query(`CREATE UNIQUE INDEX IF NOT EXISTS "IDX_blocks_blockHash" ON "blocks" ("blockHash")`);
 
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "transactions" (
@@ -95,9 +95,9 @@ export class InitialSchema1710000000000 implements MigrationInterface {
         "amount" numeric(18,2) NOT NULL,
         "type" varchar(16) NOT NULL,
         "description" text NULL,
-        "blockchainPayload" text NOT NULL,
+        "txHash" text NOT NULL,
         "blockchainSignature" varchar(130) NOT NULL,
-        "blockId" uuid NULL,
+        "blockId" uuid NOT NULL,
         "createdAt" timestamptz NOT NULL DEFAULT now(),
         CONSTRAINT "FK_transactions_account" FOREIGN KEY ("accountId") REFERENCES "accounts"("id"),
         CONSTRAINT "FK_transactions_block" FOREIGN KEY ("blockId") REFERENCES "blocks"("id"),
