@@ -6,7 +6,13 @@ import { MintDto, MintResponseDto } from './dto/mint.dto';
 export class AdminService {
   constructor(private readonly txService: TransactionsService) {}
 
-  async mint(dto: MintDto): Promise<MintResponseDto> {
-    return await this.txService.mintToAccount(dto.accountId, dto.amount, dto.description);
+  async mint(dto: MintDto, adminUserId: string): Promise<MintResponseDto> {
+    return await this.txService.mintToAccount(
+      adminUserId,
+      dto.adminUserAccountId,
+      dto.accountId,
+      dto.amount,
+      dto.description,
+    );
   }
 }
