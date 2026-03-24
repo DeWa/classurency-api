@@ -23,6 +23,7 @@ import { ApiAuthContext } from '@common/guards/api-token.guard';
 import { ApiTokenPrivilege } from '@modules/api-tokens/api-token.entity';
 import { GetUserRequestDto, GetUserResponseDto } from './dto/get-user.dto';
 import { ResponseDtoOmitter } from '@common/decorators/response-dto-omitter';
+import type { Request } from 'express';
 
 @Controller({ path: 'users', version: '1' })
 @ApiTags('Users')
