@@ -95,7 +95,7 @@ export class AccountsService {
     const derivedPublicKey = this.cryptoService.publicKeyFromPrivateKeyHex(privateKeyHex);
 
     const pinOk = await this.cryptoService.verifyPin(account.pinHash, pin);
-    const keyPairOk = derivedPublicKey !== account.publicKeyHex;
+    const keyPairOk = derivedPublicKey === account.publicKeyHex;
 
     if (!pinOk || !keyPairOk) {
       const attemptRecord = this.accountAttemptsRepo.create({
