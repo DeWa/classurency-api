@@ -60,6 +60,15 @@ export class InitialSchema1710000000000 implements MigrationInterface {
     );
 
     await queryRunner.query(`
+      CREATE OR REPLACE FUNCTION prevent_editing()
+        RETURNS TRIGGER AS $$
+          BEGIN
+            RAISE EXCEPTION 'Blockchain data is immutable. Updates and Deletes are not allowed.';
+          END;
+        $$ LANGUAGE plpgsql;
+    `);
+
+    await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "blocks" (
         "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
         "height" bigint NOT NULL,
@@ -69,6 +78,11 @@ export class InitialSchema1710000000000 implements MigrationInterface {
         "createdAt" timestamptz NOT NULL DEFAULT now()
       )
     `);
+    await queryRunner.query(
+      `CREATE TRIGGER block_immutability_trigger
+       BEFORE UPDATE OR DELETE ON blocks
+       FOR EACH ROW EXECUTE FUNCTION prevent_editing();`,
+    );
 
     await queryRunner.query(`CREATE UNIQUE INDEX IF NOT EXISTS "IDX_blocks_height" ON "blocks" ("height")`);
     await queryRunner.query(`CREATE UNIQUE INDEX IF NOT EXISTS "IDX_blocks_hash" ON "blocks" ("hash")`);
@@ -105,6 +119,12 @@ export class InitialSchema1710000000000 implements MigrationInterface {
     );
     await queryRunner.query(
       `CREATE INDEX IF NOT EXISTS "IDX_transactions_toAccountId" ON "transactions" ("toAccountId")`,
+    );
+
+    await queryRunner.query(
+      `CREATE TRIGGER transaction_immutability_trigger
+       BEFORE UPDATE OR DELETE ON transactions
+       FOR EACH ROW EXECUTE FUNCTION prevent_editing();`,
     );
 
     await queryRunner.query(`DO $$
@@ -184,9 +204,13 @@ export class InitialSchema1710000000000 implements MigrationInterface {
     await queryRunner.query(`DROP INDEX IF EXISTS "IDX_transactions_accountId"`);
     await queryRunner.query(`DROP TABLE IF EXISTS "transactions"`);
 
+    await queryRunner.query(`DROP TRIGGER IF EXISTS "transaction_immutability_trigger" ON "transactions"`);
+
     await queryRunner.query(`DROP INDEX IF EXISTS "IDX_blocks_hash"`);
     await queryRunner.query(`DROP INDEX IF EXISTS "IDX_blocks_height"`);
     await queryRunner.query(`DROP TABLE IF EXISTS "blocks"`);
+
+    await queryRunner.query(`DROP TRIGGER IF EXISTS "block_immutability_trigger" ON "blocks"`);
 
     await queryRunner.query(`DROP INDEX IF EXISTS "IDX_account_attempts_accountId"`);
     await queryRunner.query(`DROP TABLE IF EXISTS "account_attempts"`);
