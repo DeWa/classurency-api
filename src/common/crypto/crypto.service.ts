@@ -8,6 +8,7 @@ import { validate } from 'class-validator';
 import { plainToInstance } from 'class-transformer';
 
 import { JwtPayload } from './jwt-payload';
+import { TransactionBlockchainPayload } from '@common/blockchain/blockchain.service';
 
 /**
  * @noble/secp256k1 v3 leaves sync hash implementations unset; RFC6979 signing needs SHA-256 and HMAC-SHA256.
@@ -119,14 +120,6 @@ export class CryptoService {
     return plaintext.toString('utf8');
   }
 
-  encryptPrivateKeyForStorage(privateKeyHex: string): string {
-    return this.encryptWithKey(this.masterKey, privateKeyHex);
-  }
-
-  decryptStoredPrivateKey(encrypted: string): string {
-    return this.decryptWithKey(this.masterKey, encrypted);
-  }
-
   encryptPrivateKeyForCard(privateKeyHex: string): string {
     return this.encryptWithKey(this.cardExportKey, privateKeyHex);
   }
@@ -135,7 +128,7 @@ export class CryptoService {
     return this.decryptWithKey(this.cardExportKey, encrypted);
   }
 
-  signPayload(privateKeyHex: string, payload: unknown): string {
+  signPayload(privateKeyHex: string, payload: TransactionBlockchainPayload): string {
     const json = JSON.stringify(payload);
     const hash = crypto.createHash('sha256').update(json).digest();
     const privateKey = Uint8Array.from(Buffer.from(privateKeyHex, 'hex'));

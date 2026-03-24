@@ -25,7 +25,7 @@ export class AccountsService {
     const pinHash = await this.cryptoService.hashPin(pin);
     const { privateKeyHex, publicKeyHex } = this.cryptoService.generateKeyPair();
 
-    const encryptedPrivateKey = this.cryptoService.encryptPrivateKeyForStorage(privateKeyHex);
+    const encryptedPrivateKey = this.cryptoService.encryptPrivateKeyForCard(privateKeyHex);
     const cardEncryptedPrivateKey = this.cryptoService.encryptPrivateKeyForCard(privateKeyHex);
     const nfcCardUid = crypto.randomUUID();
 

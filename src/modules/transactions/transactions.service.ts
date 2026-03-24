@@ -2,7 +2,7 @@ import { Injectable, BadRequestException, NotFoundException } from '@nestjs/comm
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, Repository } from 'typeorm';
 import { CryptoService } from '@common/crypto/crypto.service';
-import { BlockchainService } from '@common/blockchain/blockchain.service';
+import { BlockchainService, TransactionBlockchainPayload } from '@common/blockchain/blockchain.service';
 import { Account } from '@modules/accounts/account.entity';
 import { AccountsService } from '@modules/accounts/accounts.service';
 import { ItemsService } from '@modules/items/items.service';
@@ -81,7 +81,7 @@ export class TransactionsService {
       id: tx.id,
       type: tx.type,
       amount: Number(tx.amount),
-      description: tx.description,
+      description: tx.description ?? null,
       createdAt: tx.createdAt,
       fromAccountId: tx.account?.id ?? null,
       toAccountId: tx.toAccount?.id ?? null,
@@ -93,9 +93,16 @@ export class TransactionsService {
    * @param accountId - The ID of the account to mint to.
    * @param amount - The amount to mint.
    * @param description - The description of the mint transaction.
+   * @param adminUserAccountId - The ID of the admin user's account who is minting the funds.
    * @returns
    */
-  async mintToAccount(accountId: string, amount: number, description?: string): Promise<{ balance: string }> {
+  async mintToAccount(
+    adminUserId: string,
+    adminUserAccountId: string,
+    accountId: string,
+    amount: number,
+    description?: string,
+  ): Promise<{ balance: string }> {
     if (amount <= 0) {
       throw new BadRequestException('Amount must be positive');
     }
@@ -103,8 +110,14 @@ export class TransactionsService {
     const account = await this.accountsRepo.findOne({
       where: { id: accountId },
     });
-    if (!account) {
-      throw new BadRequestException('Account not found');
+    const adminUserAccount = await this.accountsRepo.findOne({
+      where: { id: adminUserAccountId },
+    });
+    if (!account || !adminUserAccount) {
+      throw new BadRequestException('Account or admin user account not found');
+    }
+    if (adminUserId !== adminUserAccount.userId) {
+      throw new BadRequestException('Admin user account does not belong to the admin user');
     }
 
     await this.dataSource.transaction(async (manager) => {
@@ -112,31 +125,29 @@ export class TransactionsService {
       account.balance = newBalance;
       await manager.save(Account, account);
 
-      const payload = {
+      const payload: TransactionBlockchainPayload = {
         kind: 'MINT',
-        accountId: account.id,
+        from: adminUserAccount.id,
+        to: account.id,
         amount,
-        description: description ?? null,
+        description: description ?? undefined,
         timestamp: Date.now(),
       };
-      const storedPrivateKey = this.cryptoService.decryptStoredPrivateKey(account.encryptedPrivateKey);
-      const signature = this.cryptoService.signPayload(storedPrivateKey, payload);
+      const adminAccountPrivateKey = this.cryptoService.decryptCardPrivateKey(account.encryptedPrivateKey);
+      const signature = this.cryptoService.signPayload(adminAccountPrivateKey, payload);
+      const txHash = this.blockchainService.computeTxHash(payload, signature);
+      const block = await this.blockchainService.appendBlockForTxHash(txHash, manager);
 
-      const txPayload = JSON.stringify(payload);
       const tx = manager.create(Transaction, {
         account: undefined,
         toAccount: account,
         amount: amount,
         type: 'MINT',
-        description: description ?? null,
-        blockchainPayload: txPayload,
+        txHash,
+        block,
         blockchainSignature: signature,
+        description: description ?? undefined,
       });
-      await manager.save(Transaction, tx);
-
-      const txHash = this.blockchainService.computeTxHash(txPayload, signature);
-      const block = await this.blockchainService.appendBlockForTxHash(txHash, manager);
-      tx.block = block;
       await manager.save(Transaction, tx);
     });
 
@@ -235,43 +246,42 @@ export class TransactionsService {
         throw new BadRequestException('Insufficient balance');
       }
 
-      payerLocked.balance = currentBalance - amount;
-      recipientLocked.balance = Number(recipientLocked.balance) + amount;
-
-      await manager.save(Account, payerLocked);
-      await manager.save(Account, recipientLocked);
-
-      const payload = {
+      const payload: TransactionBlockchainPayload = {
         kind: 'PURCHASE',
-        fromUserId: payerLocked.id,
-        toUserId: recipientLocked.id,
+        from: payerLocked.id,
+        to: recipientLocked.id,
         amount,
-        description: description ?? null,
+        description: description ?? undefined,
         timestamp: Date.now(),
       };
-      const txPayload = JSON.stringify(payload);
 
       const privateKeyHex = this.cryptoService.decryptCardPrivateKey(payerLocked.encryptedPrivateKey);
       const signature = this.cryptoService.signPayload(privateKeyHex, payload);
+      const txHash = this.blockchainService.computeTxHash(payload, signature);
 
-      const createdTx = manager.create(Transaction, {
+      const block = await this.blockchainService.appendBlockForTxHash(txHash, manager);
+
+      payerLocked.balance = currentBalance - amount;
+      recipientLocked.balance = Number(recipientLocked.balance) + amount;
+
+      const tx = manager.create(Transaction, {
         account: payerLocked,
         toAccount: recipientLocked,
-        amount,
+        amount: amount,
         type: 'PURCHASE',
-        description: description ?? null,
-        blockchainPayload: txPayload,
+        txHash,
+        block,
         blockchainSignature: signature,
+        description: description ?? undefined,
       });
-      await manager.save(Transaction, createdTx);
+      await manager.save(Transaction, tx);
 
-      return { tx: createdTx };
+      // Update the accounts
+      await manager.save(Account, payerLocked);
+      await manager.save(Account, recipientLocked);
+
+      return { tx };
     });
-
-    const txHash = this.blockchainService.computeTxHash(tx.blockchainPayload, tx.blockchainSignature);
-    const block = await this.blockchainService.appendBlockForTxHash(txHash);
-    tx.block = block;
-    await this.dataSource.manager.save(Transaction, tx);
 
     return tx;
   }

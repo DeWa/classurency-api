@@ -84,7 +84,7 @@ async function upsertAccount(params: {
 }): Promise<{ account: Account; encryptedPrivateKeyForCard: string }> {
   const pinHash: string = await params.cryptoService.hashPin(params.config.pin);
   const keyPair = params.cryptoService.generateKeyPair();
-  const encryptedPrivateKey: string = params.cryptoService.encryptPrivateKeyForStorage(keyPair.privateKeyHex);
+  const encryptedPrivateKey: string = params.cryptoService.encryptPrivateKeyForCard(keyPair.privateKeyHex);
   const encryptedPrivateKeyForCard: string = params.cryptoService.encryptPrivateKeyForCard(keyPair.privateKeyHex);
   const publicKeyHex: string = keyPair.publicKeyHex;
 
