@@ -39,7 +39,7 @@ export class InitialSchema1710000000000 implements MigrationInterface {
         "isLocked" boolean NOT NULL DEFAULT FALSE,
         "createdAt" timestamptz NOT NULL DEFAULT now(),
         "updatedAt" timestamptz NOT NULL DEFAULT now(),
-        CONSTRAINT "FK_accounts_user" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE
+        CONSTRAINT "FK_accounts_user" FOREIGN KEY ("userId") REFERENCES "users"("id") ON UPDATE CASCADE
        )
     `);
     await queryRunner.query(`CREATE UNIQUE INDEX IF NOT EXISTS "IDX_accounts_nfcCardUid" ON "accounts" ("nfcCardUid")`);
