@@ -6,7 +6,7 @@ export class Block {
   id!: string;
 
   @Index({ unique: true })
-  @Column({ type: 'int' })
+  @Column({ type: 'bigint' })
   height!: number;
 
   @Column({ type: 'text' })
