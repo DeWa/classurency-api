@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import { CryptoService } from '@common/crypto/crypto.service';
 import { User } from '@modules/users/user.entity';
 import { Account } from './account.entity';
@@ -8,6 +8,12 @@ import { AccountAttempt } from './account-attempt.entity';
 import { CreateAccountDto, CreateAccountResponseDto } from './dto/create-account.dto';
 import { CheckBalanceDto } from './dto/check-balance.dto';
 import * as crypto from 'node:crypto';
+
+/** Maximum recent failed login attempts before the account is locked. */
+const MAX_FAILED_LOGIN_ATTEMPTS_BEFORE_LOCKOUT = 3;
+
+/** Only failed attempts at or after this age cutoff count toward lockout. */
+const FAILED_LOGIN_ATTEMPT_RECENCY_MS = 15 * 60 * 1000;
 
 @Injectable()
 export class AccountsService {
@@ -75,7 +81,7 @@ export class AccountsService {
   }
 
   /**
-   * Checks if the login is successful for an account and locks the account if the login fails too many times.
+   * Checks if the login is successful for an account and locks the account after too many recent failed attempts (counted in the database).
    * @param account - The account to check the login for
    * @param pin - The PIN to check
    * @param encryptedPrivateKey - The encrypted private key to check
@@ -99,15 +105,29 @@ export class AccountsService {
     const keyPairOk = derivedPublicKey === account.publicKeyHex;
 
     if (!pinOk || !keyPairOk) {
-      const attemptRecord = this.accountAttemptsRepo.create({
-        accountId: account.id,
-        ipAddress,
-        success: false,
+      let didLockAccount = false;
+      await this.accountsRepo.manager.transaction(async (manager: EntityManager) => {
+        const attemptsRepo = manager.getRepository(AccountAttempt);
+        const attemptRecord = attemptsRepo.create({
+          accountId: account.id,
+          ipAddress,
+          success: false,
+        });
+        await attemptsRepo.save(attemptRecord);
+        const since = new Date(Date.now() - FAILED_LOGIN_ATTEMPT_RECENCY_MS);
+        const failedCount = await attemptsRepo
+          .createQueryBuilder('attempt')
+          .where('attempt.accountId = :accountId', { accountId: account.id })
+          .andWhere('attempt.success = :success', { success: false })
+          .andWhere('attempt.attemptedAt >= :since', { since })
+          .getCount();
+        if (failedCount >= MAX_FAILED_LOGIN_ATTEMPTS_BEFORE_LOCKOUT) {
+          await manager.getRepository(Account).update({ id: account.id }, { isLocked: true });
+          didLockAccount = true;
+        }
       });
-      await this.accountAttemptsRepo.save(attemptRecord);
-      if (account.attempts.length >= 3) {
+      if (didLockAccount) {
         account.isLocked = true;
-        await this.accountsRepo.save(account);
       }
       return false;
     } else {
