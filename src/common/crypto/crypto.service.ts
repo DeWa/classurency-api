@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import * as crypto from 'node:crypto';
 import * as secp256k1 from '@noble/secp256k1';
 import argon2 from 'argon2';
@@ -152,7 +152,9 @@ export class CryptoService {
 
     // Use class-validator to validate the payload
     const validatedPayload = plainToInstance(JwtPayload, payload);
-    await validate(validatedPayload);
+    if ((await validate(validatedPayload)).length > 0) {
+      throw new UnauthorizedException('Invalid JWT payload');
+    }
     return validatedPayload;
   }
 }
