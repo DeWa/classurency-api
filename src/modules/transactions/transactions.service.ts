@@ -25,6 +25,34 @@ export class TransactionsService {
     private readonly dataSource: DataSource,
   ) {}
 
+  private async findPayerAccountIdByNfcCardUid(requesterUserId: string, nfcCardUid: string): Promise<string> {
+    const payerAccount = await this.accountsRepo.findOne({
+      where: { nfcCardUid },
+    });
+    if (!payerAccount) {
+      throw new BadRequestException('Payer account not found');
+    }
+    if (payerAccount.userId !== requesterUserId) {
+      throw new BadRequestException('Payer account does not belong to the requester');
+    }
+    return payerAccount.id;
+  }
+
+  private async findPayerAccountIdByCardKey(
+    requesterUserId: string,
+    encryptedPrivateKeyFromCard: string,
+  ): Promise<string> {
+    const privateKeyHex = this.cryptoService.decryptCardPrivateKey(encryptedPrivateKeyFromCard);
+    const derivedPublicKeyHex = this.cryptoService.publicKeyFromPrivateKeyHex(privateKeyHex);
+    const payerAccount = await this.accountsRepo.findOne({
+      where: { userId: requesterUserId, publicKeyHex: derivedPublicKeyHex },
+    });
+    if (!payerAccount) {
+      throw new BadRequestException('Payer account not found');
+    }
+    return payerAccount.id;
+  }
+
   /**
    * Lists transactions where the authenticated user is the payer, recipient, or mint recipient.
    *
@@ -155,9 +183,10 @@ export class TransactionsService {
   }
 
   async transfer(transferData: TransferDto, apiAuth: ApiAuthContext, ipAddress: string): Promise<Transaction> {
+    const payerAccountId = await this.findPayerAccountIdByNfcCardUid(apiAuth.userId, transferData.nfcCardUid);
     return this.transferToAccount({
       requesterUserId: apiAuth.userId,
-      fromAccountId: undefined,
+      fromAccountId: payerAccountId,
       toAccountId: transferData.toAccountId,
       amount: transferData.value,
       description: transferData.description,
@@ -315,6 +344,10 @@ export class TransactionsService {
       }
     }
 
+    const payerAccountId = await this.findPayerAccountIdByCardKey(
+      requesterUserId,
+      accountData.encryptedPrivateKeyFromCard,
+    );
     const { tx, itemAmounts } = await this.dataSource.manager.transaction(
       async (manager): Promise<{ tx: Transaction; itemAmounts: Record<string, number> }> => {
         const totalValue = items.reduce((acc, item) => acc + item.value, 0);
@@ -324,6 +357,7 @@ export class TransactionsService {
         const tx = await this.transferToAccount(
           {
             requesterUserId,
+            fromAccountId: payerAccountId,
             toAccountId: providerAccountId,
             amount: totalValue,
             description: descriptionWithItems,
