@@ -1,4 +1,25 @@
-import { BadRequestException } from '@nestjs/common';
+import type { Account } from '@modules/accounts/account.entity';
+import { ApiTokenPrivilege } from '@modules/api-tokens/api-token.entity';
+import type { ApiAuthContext } from '@common/guards/api-token.guard';
+import type { AccountsService } from '@modules/accounts/accounts.service';
+import type { BlockchainService } from '@common/blockchain/blockchain.service';
+import type { CryptoService } from '@common/crypto/crypto.service';
+import type { ItemsService } from '@modules/items/items.service';
+import type { Item } from '@modules/items/item.entity';
+import type { Repository, DataSource } from 'typeorm';
+import { UserType } from '@modules/users/user.entity';
+import type { Transaction } from './transaction.entity';
+import type { TransactionsService as TransactionsServiceType } from './transactions.service';
+import type { TransferDto as TransferDtoType } from './dto/transfer.dto';
+
+/* eslint-disable @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return */
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const {
+  TransactionsService,
+}: {
+  TransactionsService: typeof import('./transactions.service').TransactionsService;
+} = require('./transactions.service');
+
 jest.mock('@common/crypto/crypto.service', () => ({
   CryptoService: class CryptoService {},
 }));
@@ -13,30 +34,25 @@ jest.mock('@modules/items/items.service', () => ({
   ItemsService: class ItemsService {},
 }));
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { TransactionsService } = require('./transactions.service');
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { TransferDto } = require('./dto/transfer.dto');
-
 describe('TransactionsService', () => {
   function createService(params: {
     accountsRepo: { findOne: jest.Mock };
     cryptoService: { decryptCardPrivateKey: jest.Mock; publicKeyFromPrivateKeyHex: jest.Mock };
     itemsService: { findByIds: jest.Mock };
     dataSource: { manager: { transaction: jest.Mock } };
-  }): TransactionsService {
-    const transactionsRepo = {} as any;
-    const blockchainService = {} as any;
-    const accountsService = {} as any;
+  }): TransactionsServiceType {
+    const transactionsRepo = {} as unknown as Repository<Transaction>;
+    const blockchainService = {} as unknown as BlockchainService;
+    const accountsService = {} as unknown as AccountsService;
 
     return new TransactionsService(
       transactionsRepo,
-      params.accountsRepo as any,
-      params.cryptoService as any,
+      params.accountsRepo as unknown as Repository<Account>,
+      params.cryptoService as unknown as CryptoService,
       blockchainService,
       accountsService,
-      params.itemsService as any,
-      params.dataSource as any,
+      params.itemsService as unknown as ItemsService,
+      params.dataSource as unknown as DataSource,
     );
   }
 
@@ -56,9 +72,9 @@ describe('TransactionsService', () => {
       const service = createService({ accountsRepo, cryptoService, itemsService, dataSource });
       const transferToAccountSpy = jest
         .spyOn(service, 'transferToAccount')
-        .mockResolvedValue({ id: 123 } as any);
+        .mockResolvedValue({ id: 123 } as unknown as Transaction);
 
-      const dto: TransferDto = {
+      const dto: TransferDtoType = {
         nfcCardUid: 'card-uid',
         toAccountId: 'to-account-id',
         value: 2.5,
@@ -66,7 +82,11 @@ describe('TransactionsService', () => {
         pin: '1234',
         encryptedPrivateKeyFromCard: 'encrypted-private-key',
       };
-      const apiAuth = { userId: 'requester-user-id' } as any;
+      const apiAuth: ApiAuthContext = {
+        userId: 'requester-user-id',
+        privilege: ApiTokenPrivilege.USER,
+        userType: UserType.USER,
+      };
 
       await service.transfer(dto, apiAuth, '127.0.0.1');
 
@@ -98,7 +118,7 @@ describe('TransactionsService', () => {
 
       const service = createService({ accountsRepo, cryptoService, itemsService, dataSource });
 
-      const dto: TransferDto = {
+      const dto: TransferDtoType = {
         nfcCardUid: 'unknown-card-uid',
         toAccountId: 'to-account-id',
         value: 2.5,
@@ -106,14 +126,18 @@ describe('TransactionsService', () => {
         pin: '1234',
         encryptedPrivateKeyFromCard: 'encrypted-private-key',
       };
-      const apiAuth = { userId: 'requester-user-id' } as any;
+      const apiAuth: ApiAuthContext = {
+        userId: 'requester-user-id',
+        privilege: ApiTokenPrivilege.USER,
+        userType: UserType.USER,
+      };
 
       await expect(service.transfer(dto, apiAuth, '127.0.0.1')).rejects.toThrow('Payer account not found');
     });
   });
 
   describe('purchaseItems()', () => {
-    it('resolves fromAccountId before calling transferToAccount', async () => {
+    it('computes totals from item quantity and persists stock decrements', async () => {
       const payerAccount = { id: 'payer-account-id', userId: 'requester-user-id' };
       const accountsRepo = {
         findOne: jest.fn().mockResolvedValue(payerAccount),
@@ -128,31 +152,35 @@ describe('TransactionsService', () => {
           id: 'item-1',
           name: 'Item 1',
           value: 2.0,
-          amount: null,
+          amount: 10,
         },
       ];
       const itemsService = {
         findByIds: jest.fn().mockResolvedValue(items),
       };
 
-      const mockManager = {} as any;
+      const mockLockedItem = { ...items[0] } as unknown as Item;
+      const mockManager: { findOne: jest.Mock; save: jest.Mock } = {
+        findOne: jest.fn().mockResolvedValue(mockLockedItem),
+        save: jest.fn().mockResolvedValue(mockLockedItem),
+      };
       const dataSource = {
         manager: {
-          transaction: jest.fn().mockImplementation(async (callback: any) => callback(mockManager)),
+          transaction: jest.fn().mockImplementation((callback: (manager: unknown) => unknown) => callback(mockManager)),
         },
       };
 
       const service = createService({ accountsRepo, cryptoService, itemsService, dataSource });
       const transferToAccountSpy = jest
         .spyOn(service, 'transferToAccount')
-        .mockResolvedValue({ id: 999 } as any);
+        .mockResolvedValue({ id: 999 } as unknown as Transaction);
 
       const result = await service.purchaseItems(
         {
           pin: '1234',
           encryptedPrivateKeyFromCard: 'encrypted-private-key',
         },
-        ['item-1'],
+        ['item-1', 'item-1'],
         'provider-account-id',
         'requester-user-id',
         '127.0.0.1',
@@ -160,16 +188,21 @@ describe('TransactionsService', () => {
       );
 
       expect(result.transactionId).toBe(999);
-      expect(result.remainingAmount).toEqual({});
+      expect(result.remainingAmount).toEqual({ 'item-1': 8 });
+      expect(mockManager.findOne).toHaveBeenCalledWith(expect.anything(), {
+        where: { id: 'item-1' },
+        lock: { mode: 'pessimistic_write' },
+      });
+      expect(mockManager.save).toHaveBeenCalled();
       expect(transferToAccountSpy).toHaveBeenCalledWith(
         expect.objectContaining({
           requesterUserId: 'requester-user-id',
           fromAccountId: 'payer-account-id',
           toAccountId: 'provider-account-id',
+          amount: 4.0,
         }),
         mockManager,
       );
     });
   });
 });
-

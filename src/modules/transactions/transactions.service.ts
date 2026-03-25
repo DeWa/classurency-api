@@ -6,6 +6,7 @@ import { BlockchainService, TransactionBlockchainPayload } from '@common/blockch
 import { Account } from '@modules/accounts/account.entity';
 import { AccountsService } from '@modules/accounts/accounts.service';
 import { ItemsService } from '@modules/items/items.service';
+import { Item } from '@modules/items/item.entity';
 import { ApiAuthContext } from '@common/guards/api-token.guard';
 import { Transaction } from './transaction.entity';
 import { TransferDto } from './dto/transfer.dto';
@@ -252,65 +253,98 @@ export class TransactionsService {
     }
 
     const manager = transactionManager ?? this.dataSource.manager;
+    const payerAccountId = payerAccount.id;
 
-    const { tx } = await manager.transaction(async (manager) => {
-      const payerLocked = await manager.findOne(Account, {
-        where: { id: payerAccount.id },
-        lock: { mode: 'pessimistic_write' },
-      });
-      if (!payerLocked) {
-        throw new BadRequestException('Payer account not found');
-      }
+    if (transactionManager) {
+      return this.performTransferToAccount(
+        {
+          payerAccountId,
+          toAccountId,
+          amount,
+          description,
+        },
+        manager,
+      );
+    }
 
-      const recipientLocked = await manager.findOne(Account, {
-        where: { id: toAccountId },
-        lock: { mode: 'pessimistic_write' },
-      });
-      if (!recipientLocked) {
-        throw new BadRequestException('Recipient account not found');
-      }
-
-      const currentBalance = Number(payerLocked.balance);
-      if (currentBalance < amount) {
-        throw new BadRequestException('Insufficient balance');
-      }
-
-      const payload: TransactionBlockchainPayload = {
-        kind: 'PURCHASE',
-        from: payerLocked.id,
-        to: recipientLocked.id,
-        amount,
-        description: description ?? undefined,
-        timestamp: Date.now(),
-      };
-
-      const privateKeyHex = this.cryptoService.decryptCardPrivateKey(payerLocked.encryptedPrivateKey);
-      const signature = this.cryptoService.signPayload(privateKeyHex, payload);
-      const txHash = this.blockchainService.computeTxHash(payload, signature);
-
-      const block = await this.blockchainService.appendBlockForTxHash(txHash, manager);
-
-      payerLocked.balance = currentBalance - amount;
-      recipientLocked.balance = Number(recipientLocked.balance) + amount;
-
-      const tx = manager.create(Transaction, {
-        account: payerLocked,
-        toAccount: recipientLocked,
-        amount: amount,
-        type: 'PURCHASE',
-        txHash,
-        block,
-        blockchainSignature: signature,
-        description: description ?? undefined,
-      });
-      await manager.save(Transaction, tx);
-
-      // Update the accounts
-      await manager.save(Account, payerLocked);
-      await manager.save(Account, recipientLocked);
-
-      return { tx };
+    return manager.transaction(async (transactionalManager) => {
+      return this.performTransferToAccount(
+        {
+          payerAccountId,
+          toAccountId,
+          amount,
+          description,
+        },
+        transactionalManager,
+      );
     });
+  }
+
+  private async performTransferToAccount(
+    params: {
+      payerAccountId: string;
+      toAccountId: string;
+      amount: number;
+      description?: string;
+    },
+    manager: EntityManager,
+  ): Promise<Transaction> {
+    const { payerAccountId, toAccountId, amount, description } = params;
+
+    const payerLocked = await manager.findOne(Account, {
+      where: { id: payerAccountId },
+      lock: { mode: 'pessimistic_write' },
+    });
+    if (!payerLocked) {
+      throw new BadRequestException('Payer account not found');
+    }
+
+    const recipientLocked = await manager.findOne(Account, {
+      where: { id: toAccountId },
+      lock: { mode: 'pessimistic_write' },
+    });
+    if (!recipientLocked) {
+      throw new BadRequestException('Recipient account not found');
+    }
+
+    const currentBalance = Number(payerLocked.balance);
+    if (currentBalance < amount) {
+      throw new BadRequestException('Insufficient balance');
+    }
+
+    const payload: TransactionBlockchainPayload = {
+      kind: 'PURCHASE',
+      from: payerLocked.id,
+      to: recipientLocked.id,
+      amount,
+      description: description ?? undefined,
+      timestamp: Date.now(),
+    };
+
+    const privateKeyHex = this.cryptoService.decryptCardPrivateKey(payerLocked.encryptedPrivateKey);
+    const signature = this.cryptoService.signPayload(privateKeyHex, payload);
+    const txHash = this.blockchainService.computeTxHash(payload, signature);
+
+    const block = await this.blockchainService.appendBlockForTxHash(txHash, manager);
+
+    payerLocked.balance = currentBalance - amount;
+    recipientLocked.balance = Number(recipientLocked.balance) + amount;
+
+    const tx = manager.create(Transaction, {
+      account: payerLocked,
+      toAccount: recipientLocked,
+      amount: amount,
+      type: 'PURCHASE',
+      txHash,
+      block,
+      blockchainSignature: signature,
+      description: description ?? undefined,
+    });
+    await manager.save(Transaction, tx);
+
+    // Update the accounts
+    await manager.save(Account, payerLocked);
+    await manager.save(Account, recipientLocked);
 
     return tx;
   }
@@ -329,16 +363,27 @@ export class TransactionsService {
     transactionId: number;
     remainingAmount: Record<string, number>;
   }> {
-    const items = await this.itemsService.findByIds(itemIds);
+    const uniqueItemIds = Array.from(new Set(itemIds));
+    const quantityByItemId: Record<string, number> = {};
+    for (const itemId of itemIds) {
+      quantityByItemId[itemId] = (quantityByItemId[itemId] ?? 0) + 1;
+    }
 
-    // If any of the items are out of stock, return an error.
+    const items = await this.itemsService.findByIds(uniqueItemIds);
+    const itemById = new Map(items.map((item) => [item.id, item]));
+
+    if (items.length !== uniqueItemIds.length) {
+      const missingItemIds = uniqueItemIds.filter((itemId) => !itemById.has(itemId));
+      throw new BadRequestException(`Items not found: ${missingItemIds.join(', ')}`);
+    }
+
+    // If any tracked items are out of stock, return an error early.
     for (const item of items) {
-      // Item amount is not tracked
       if (item.amount === null) {
         continue;
       }
-      const howManyPurchased = itemIds.filter((id) => id === item.id).length;
 
+      const howManyPurchased = quantityByItemId[item.id] ?? 0;
       if (item.amount < howManyPurchased) {
         throw new BadRequestException(`Item ${item.name} is out of stock. Only ${item.amount} left.`);
       }
@@ -348,12 +393,22 @@ export class TransactionsService {
       requesterUserId,
       accountData.encryptedPrivateKeyFromCard,
     );
+
+    const purchasedItemNames = itemIds
+      .map((itemId) => itemById.get(itemId)?.name)
+      .filter((name): name is string => Boolean(name));
+
     const { tx, itemAmounts } = await this.dataSource.manager.transaction(
       async (manager): Promise<{ tx: Transaction; itemAmounts: Record<string, number> }> => {
-        const totalValue = items.reduce((acc, item) => acc + item.value, 0);
+        const totalValue = items.reduce((acc, item) => {
+          const qty = quantityByItemId[item.id] ?? 0;
+          return acc + item.value * qty;
+        }, 0);
+
         const descriptionWithItems = description
-          ? `${description} - ${items.map((item) => item.name).join(', ')}`
-          : items.map((item) => item.name).join(', ');
+          ? `${description} - ${purchasedItemNames.join(', ')}`
+          : purchasedItemNames.join(', ');
+
         const tx = await this.transferToAccount(
           {
             requesterUserId,
@@ -368,17 +423,38 @@ export class TransactionsService {
           manager,
         );
 
-        // Update item amounts
         const itemAmounts: Record<string, number> = {};
 
         for (const item of items) {
-          // Item amount is not tracked
+          const howManyPurchased = quantityByItemId[item.id] ?? 0;
+          if (howManyPurchased <= 0) {
+            continue;
+          }
+
           if (item.amount === null) {
             continue;
           }
-          const howManyPurchased = itemIds.filter((itemId) => itemId === item.id).length;
-          const newAmount = item.amount - howManyPurchased;
-          itemAmounts[item.id] = newAmount;
+
+          const lockedItem = await manager.findOne(Item, {
+            where: { id: item.id },
+            lock: { mode: 'pessimistic_write' },
+          });
+
+          if (!lockedItem) {
+            throw new BadRequestException(`Item ${item.id} not found`);
+          }
+
+          if (lockedItem.amount === null) {
+            continue;
+          }
+
+          if (lockedItem.amount < howManyPurchased) {
+            throw new BadRequestException(`Item ${lockedItem.name} is out of stock. Only ${lockedItem.amount} left.`);
+          }
+
+          lockedItem.amount = lockedItem.amount - howManyPurchased;
+          itemAmounts[lockedItem.id] = lockedItem.amount;
+          await manager.save(Item, lockedItem);
         }
 
         return { tx, itemAmounts };
