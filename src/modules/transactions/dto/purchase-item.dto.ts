@@ -7,12 +7,10 @@ import {
   IsUUID,
   Length,
   MaxLength,
-  ValidateNested,
   ArrayMinSize,
   IsArray,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
 
 export class PurchaseItemDto {
   @ApiProperty({
@@ -60,9 +58,8 @@ export class PurchaseItemDto {
     example: ['3fa85f64-5717-4562-b3fc-2c963f66afa6'],
   })
   @IsArray()
-  @ValidateNested({ each: true })
   @ArrayMinSize(1)
-  @Type(() => String)
+  @IsUUID('4', { each: true })
   items!: string[];
 }
 
