@@ -1,0 +1,107 @@
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import type { Repository } from 'typeorm';
+import type { User as UserEntity } from './user.entity';
+import { User, UserType } from './user.entity';
+import type { UpdateUserRequestDto } from './dto/update-user.dto';
+
+/* eslint-disable @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return */
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+jest.mock('@common/crypto/crypto.service', () => ({
+  CryptoService: class CryptoService {},
+}));
+
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { UsersService }: { UsersService: typeof import('./users.service').UsersService } = require('./users.service');
+type UsersServiceType = InstanceType<typeof UsersService>;
+
+describe('UsersService', () => {
+  function createService(params: {
+    usersRepo: { findOne: jest.Mock; save: jest.Mock };
+    cryptoService: { hashPassword: jest.Mock };
+  }): UsersServiceType {
+    return new UsersService(
+      params.usersRepo as unknown as Repository<UserEntity>,
+      params.cryptoService as unknown,
+    );
+  }
+
+  describe('updateUser()', () => {
+    it('throws ForbiddenException when reqUserId does not match userId', async () => {
+      const usersRepo = { findOne: jest.fn(), save: jest.fn() };
+      const cryptoService = { hashPassword: jest.fn() };
+      const service = createService({ usersRepo, cryptoService });
+
+      await expect(
+        service.updateUser('requester-user-id', 'target-user-id', {} as UpdateUserRequestDto),
+      ).rejects.toThrow(ForbiddenException);
+
+      expect(usersRepo.findOne).not.toHaveBeenCalled();
+    });
+
+    it('throws NotFoundException when user does not exist', async () => {
+      const usersRepo = { findOne: jest.fn().mockResolvedValue(null), save: jest.fn() };
+      const cryptoService = { hashPassword: jest.fn() };
+      const service = createService({ usersRepo, cryptoService });
+
+      await expect(
+        service.updateUser('user-id', 'user-id', {} as UpdateUserRequestDto),
+      ).rejects.toThrow(NotFoundException);
+
+      expect(usersRepo.findOne).toHaveBeenCalledWith({ where: { id: 'user-id' } });
+    });
+
+    it('forbids non-admin users from changing their type', async () => {
+      const existingUser: User = { id: 'user-id', name: 'Alice', userName: 'alice', passwordHash: 'old', type: UserType.USER, accounts: [], createdAt: new Date(), updatedAt: new Date() };
+
+      const usersRepo = { findOne: jest.fn().mockResolvedValue(existingUser), save: jest.fn() };
+      const cryptoService = { hashPassword: jest.fn() };
+      const service = createService({ usersRepo, cryptoService });
+
+      const dto: UpdateUserRequestDto = { type: UserType.ADMIN } as UpdateUserRequestDto;
+
+      await expect(service.updateUser('user-id', 'user-id', dto)).rejects.toThrow(ForbiddenException);
+      expect(usersRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('hashes password updates into passwordHash and returns a safe response', async () => {
+      const existingUser: User = { id: 'user-id', name: 'Alice', userName: 'alice', passwordHash: 'old', type: UserType.USER, accounts: [], createdAt: new Date(), updatedAt: new Date() };
+
+      const usersRepo = {
+        findOne: jest.fn().mockResolvedValue(existingUser),
+        save: jest.fn().mockImplementation(async (userToSave: User) => userToSave),
+      };
+      const cryptoService = { hashPassword: jest.fn().mockResolvedValue('new-hash') };
+      const service = createService({ usersRepo, cryptoService });
+
+      const dto: UpdateUserRequestDto = { password: 'new-password' } as UpdateUserRequestDto;
+
+      const response = await service.updateUser('user-id', 'user-id', dto);
+
+      expect(cryptoService.hashPassword).toHaveBeenCalledWith('new-password');
+      expect(usersRepo.save).toHaveBeenCalled();
+      expect((usersRepo.save.mock.calls[0]?.[0] as User).passwordHash).toBe('new-hash');
+
+      expect(response).toEqual({ id: 'user-id', name: 'Alice', type: UserType.USER });
+      expect('passwordHash' in response).toBe(false);
+    });
+
+    it('allows admins to update their type', async () => {
+      const existingUser: User = { id: 'admin-user-id', name: 'Admin', userName: 'admin', passwordHash: 'old', type: UserType.ADMIN, accounts: [], createdAt: new Date(), updatedAt: new Date() };
+
+      const usersRepo = {
+        findOne: jest.fn().mockResolvedValue(existingUser),
+        save: jest.fn().mockImplementation(async (userToSave: User) => userToSave),
+      };
+      const cryptoService = { hashPassword: jest.fn() };
+      const service = createService({ usersRepo, cryptoService });
+
+      const dto: UpdateUserRequestDto = { type: UserType.USER } as UpdateUserRequestDto;
+
+      const response = await service.updateUser('admin-user-id', 'admin-user-id', dto);
+
+      expect(usersRepo.save).toHaveBeenCalled();
+      expect(response.type).toBe(UserType.USER);
+    });
+  });
+});
+

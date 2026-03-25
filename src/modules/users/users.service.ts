@@ -1,0 +1,134 @@
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { CryptoService } from '@common/crypto/crypto.service';
+import { Account } from '@modules/accounts/account.entity';
+import { User, UserType } from './user.entity';
+import { UserAccountSummaryDto } from './dto/user-account-summary.dto';
+import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserRequestDto, UpdateUserResponseDto } from './dto/update-user.dto';
+import {
+  isUserNameAlreadyExistsError,
+  UserNameAlreadyExistsException,
+} from './errors/user-name-already-exists.exception';
+
+@Injectable()
+export class UsersService {
+  constructor(
+    @InjectRepository(User)
+    private readonly usersRepo: Repository<User>,
+    private readonly cryptoService: CryptoService,
+  ) {}
+
+  /**
+   * Create a new user
+   * @param name - The name of the user
+   * @param password - The password of the user
+   * @param type - The type of the user
+   * @returns The created user
+   */
+  async createUser(name: string, userName: string, password: string) {
+    const passwordHash = await this.cryptoService.hashPassword(password);
+    const user = this.usersRepo.create({
+      name,
+      userName,
+      passwordHash,
+      type: UserType.USER,
+    });
+    try {
+      await this.usersRepo.save(user);
+    } catch (error: unknown) {
+      if (isUserNameAlreadyExistsError(error)) {
+        throw new UserNameAlreadyExistsException();
+      }
+      throw error;
+    }
+    return {
+      id: user.id,
+      name: user.name,
+      userName: user.userName,
+      type: user.type,
+    };
+  }
+
+  /**
+   * Create a new user with a random password
+   * @param name - The name of the user
+   * @param type - The type of the user
+   * @returns The created user
+   */
+  async createUserAsAdmin(dto: CreateUserDto) {
+    const password = this.cryptoService.generateRandomPassword();
+    const user = await this.createUser(dto.name, dto.userName, password);
+    return {
+      id: user.id,
+      name: user.name,
+      userName: user.userName,
+      type: user.type,
+      password,
+    };
+  }
+
+  /**
+   * Update a user
+   * @param dto - The update user request dto
+   * @returns The updated user
+   */
+  async updateUser(reqUserId: string, userId: string, dto: UpdateUserRequestDto): Promise<UpdateUserResponseDto> {
+    if (reqUserId !== userId) {
+      throw new ForbiddenException('You are not allowed to update this user');
+    }
+    const user = await this.usersRepo.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    if (dto.name !== undefined) {
+      user.name = dto.name;
+    }
+
+    if (dto.password !== undefined) {
+      user.passwordHash = await this.cryptoService.hashPassword(dto.password);
+    }
+
+    if (dto.type !== undefined) {
+      if (user.type !== UserType.ADMIN) {
+        throw new ForbiddenException('You are not allowed to change user type');
+      }
+      user.type = dto.type;
+    }
+
+    const savedUser = await this.usersRepo.save(user);
+    return { id: savedUser.id, name: savedUser.name, type: savedUser.type };
+  }
+
+  /**
+   * Load a user. Optionally loads account summaries (no secrets) for each account.
+   */
+  async getUser(userId: string, options?: { includeAccounts?: boolean }): Promise<User> {
+    const user = await this.usersRepo.findOne({
+      where: { id: userId },
+      relations: options?.includeAccounts ? ['accounts'] : [],
+    });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    if (!options?.includeAccounts) {
+      return user;
+    }
+    return Object.assign(user, {
+      accounts: (user.accounts ?? []).map((account) => this.mapAccountToSummary(account)),
+    });
+  }
+
+  private mapAccountToSummary(account: Account): UserAccountSummaryDto {
+    return {
+      id: account.id,
+      nfcCardUid: account.nfcCardUid,
+      publicKeyHex: account.publicKeyHex,
+      balance: Number(account.balance),
+      isLocked: account.isLocked,
+      createdAt: account.createdAt,
+      updatedAt: account.updatedAt,
+    };
+  }
+}

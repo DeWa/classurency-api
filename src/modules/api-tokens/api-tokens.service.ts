@@ -1,0 +1,146 @@
+import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { User, UserType } from '@modules/users/user.entity';
+import { CryptoService } from '@common/crypto/crypto.service';
+import { ApiToken, ApiTokenPrivilege, ApiTokenType } from './api-token.entity';
+import { RequestTokenDto } from './dto/request-token.dto';
+import ms from 'ms';
+
+const PRIVILEGE_RANK: Record<ApiTokenPrivilege, number> = {
+  [ApiTokenPrivilege.USER]: 1,
+  [ApiTokenPrivilege.PROVIDER]: 2,
+  [ApiTokenPrivilege.ADMIN]: 3,
+};
+
+@Injectable()
+export class ApiTokensService {
+  constructor(
+    @InjectRepository(ApiToken)
+    private readonly apiTokensRepo: Repository<ApiToken>,
+    @InjectRepository(User)
+    private readonly usersRepo: Repository<User>,
+    private readonly cryptoService: CryptoService,
+  ) {}
+
+  private ensureAllowedPrivilege(userType: UserType, privilege: ApiTokenPrivilege): ApiTokenPrivilege {
+    let maxPrivilege: ApiTokenPrivilege;
+    if (userType === UserType.ADMIN) {
+      maxPrivilege = ApiTokenPrivilege.ADMIN;
+    } else if (userType === UserType.PROVIDER) {
+      maxPrivilege = ApiTokenPrivilege.PROVIDER;
+    } else {
+      maxPrivilege = ApiTokenPrivilege.USER;
+    }
+
+    if (PRIVILEGE_RANK[privilege] > PRIVILEGE_RANK[maxPrivilege]) {
+      throw new UnauthorizedException('Insufficient privileges');
+    }
+    return maxPrivilege;
+  }
+
+  async createToken(user: User, privilege: ApiTokenPrivilege, type: ApiTokenType): Promise<string> {
+    const expirationTime = '180d'; // TODO: Change maybe?
+    const expirationDate = new Date(Date.now() + ms(expirationTime));
+
+    const token = this.apiTokensRepo.create({
+      userId: user.id,
+      privilege,
+      type,
+      expiresAt: expirationDate,
+      revokedAt: null,
+    });
+    await this.apiTokensRepo.save(token);
+
+    const jwtToken = this.cryptoService.generateJwtToken(
+      {
+        userId: user.id,
+        userType: user.type,
+        tokenId: token.id,
+        privilege,
+        type,
+      },
+      expirationTime,
+    );
+    return jwtToken;
+  }
+
+  async createApiToken(dto: RequestTokenDto, reqAuthId: string) {
+    const user = await this.usersRepo.findOne({
+      where: { id: dto.userId },
+    });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (user.id !== reqAuthId) {
+      throw new UnauthorizedException('Invalid user');
+    }
+
+    this.ensureAllowedPrivilege(user.type, dto.privilege ?? ApiTokenPrivilege.USER);
+
+    const privilege = dto.privilege ?? ApiTokenPrivilege.USER;
+
+    const token = await this.createToken(user, privilege, ApiTokenType.API);
+
+    return {
+      token,
+    };
+  }
+
+  async validateToken(rawToken: string): Promise<{ user: User; token: ApiToken }> {
+    const payload = await this.cryptoService.verifyJwtToken(rawToken);
+    const token = await this.apiTokensRepo.findOne({
+      where: { id: payload.tokenId, revokedAt: undefined },
+    });
+    if (!token) {
+      throw new UnauthorizedException('Invalid token');
+    }
+    if (token.revokedAt) {
+      throw new UnauthorizedException('Token revoked');
+    }
+    if (token.expiresAt && token.expiresAt.getTime() < Date.now()) {
+      throw new UnauthorizedException('Token expired');
+    }
+
+    const user = await this.usersRepo.findOne({
+      where: { id: token.userId },
+    });
+    if (!user) {
+      throw new UnauthorizedException('Invalid token');
+    }
+
+    return {
+      user,
+      token,
+    };
+  }
+
+  /**
+   * Get the login token for a user
+   * @param user - The user to get the login token for
+   * @returns The login token for the user
+   */
+  async getLoginToken(user: User): Promise<ApiToken | null> {
+    const token = await this.apiTokensRepo.findOne({
+      where: { userId: user.id, type: ApiTokenType.LOGIN, revokedAt: undefined },
+      order: { createdAt: 'DESC' },
+    });
+    return token;
+  }
+
+  /**
+   * Revoke a token
+   * @param tokenId - The ID of the token to revoke
+   * @returns The revoked token
+   */
+  async revokeToken(tokenId: string) {
+    try {
+      const token = await this.apiTokensRepo.update({ id: tokenId }, { revokedAt: new Date() });
+      return token;
+    } catch (error) {
+      console.error(error);
+      throw new NotFoundException('Failed to revoke token');
+    }
+  }
+}
