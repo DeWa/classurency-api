@@ -6,7 +6,7 @@ import { Account } from '@modules/accounts/account.entity';
 import { User, UserType } from './user.entity';
 import { UserAccountSummaryDto } from './dto/user-account-summary.dto';
 import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserRequestDto } from './dto/update-user.dto';
+import { UpdateUserRequestDto, UpdateUserResponseDto } from './dto/update-user.dto';
 import {
   isUserNameAlreadyExistsError,
   UserNameAlreadyExistsException,
@@ -74,7 +74,7 @@ export class UsersService {
    * @param dto - The update user request dto
    * @returns The updated user
    */
-  async updateUser(reqUserId: string, userId: string, dto: UpdateUserRequestDto) {
+  async updateUser(reqUserId: string, userId: string, dto: UpdateUserRequestDto): Promise<UpdateUserResponseDto> {
     if (reqUserId !== userId) {
       throw new ForbiddenException('You are not allowed to update this user');
     }
@@ -82,8 +82,23 @@ export class UsersService {
     if (!user) {
       throw new NotFoundException('User not found');
     }
-    const updatedUser = this.usersRepo.merge(user, dto);
-    return this.usersRepo.save(updatedUser);
+    if (dto.name !== undefined) {
+      user.name = dto.name;
+    }
+
+    if (dto.password !== undefined) {
+      user.passwordHash = await this.cryptoService.hashPassword(dto.password);
+    }
+
+    if (dto.type !== undefined) {
+      if (user.type !== UserType.ADMIN) {
+        throw new ForbiddenException('You are not allowed to change user type');
+      }
+      user.type = dto.type;
+    }
+
+    const savedUser = await this.usersRepo.save(user);
+    return { id: savedUser.id, name: savedUser.name, type: savedUser.type };
   }
 
   /**
