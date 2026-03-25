@@ -5,6 +5,7 @@ import { ApiAuthContext, ApiTokenGuard } from '@common/guards/api-token.guard';
 import { ApiTokenPrivilege } from './api-token.entity';
 import { ApiTokensService } from './api-tokens.service';
 import { RequestTokenDto, RequestTokenResponseDto } from './dto/request-token.dto';
+import type { Request } from 'express';
 
 @Controller({ path: 'tokens', version: '1' })
 @ApiTags('Tokens')
