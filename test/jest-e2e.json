@@ -6,8 +6,12 @@
   "transform": {
     "^.+\\.(t|j)s$": "ts-jest"
   },
+  "transformIgnorePatterns": ["/node_modules/(?!@noble/.*)"],
   "moduleNameMapper": {
-    "^@common/(.*)$": "<rootDir>/src/common/$1",
-    "^@modules/(.*)$": "<rootDir>/src/modules/$1"
-  }
+    "^@common/(.*)$": "<rootDir>/../src/common/$1",
+    "^@modules/(.*)$": "<rootDir>/../src/modules/$1"
+  },
+  "setupFiles": ["<rootDir>/e2e-env.ts"],
+  "globalSetup": "<rootDir>/global-setup.ts",
+  "testTimeout": 60000
 }

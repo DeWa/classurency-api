@@ -1,3 +1,4 @@
+import { join } from 'node:path';
 import { TypeOrmModuleAsyncOptions } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { User } from '@modules/users/user.entity';
@@ -13,8 +14,17 @@ export const typeOrmConfig: TypeOrmModuleAsyncOptions = {
     port: Number(config.get<number>('DB_PORT', 5432)),
     username: config.get<string>('DB_USER', 'postgres'),
     password: config.get<string>('DB_PASSWORD', 'postgres'),
-    database: config.get<string>('DB_NAME', 'classurency'),
+    /**
+     * Prefer `process.env.DB_NAME` so tooling (e.g. Jest e2e `setupFiles`) can target a DB
+     * without being overridden by `.env` — ConfigService resolves file-based env before `process.env`.
+     */
+    database: process.env.DB_NAME ?? config.get<string>('DB_NAME', 'classurency'),
     entities: [User, Transaction, Block],
+    /**
+     * Same migration paths as `ormconfig.ts` so `DataSource.runMigrations()` (e.g. e2e bootstrap) applies schema.
+     * Without this, Nest's TypeORM has no migration files and tables such as `items` never exist.
+     */
+    migrations: [join(__dirname, '..', 'migrations', '*.ts'), join(__dirname, '..', 'migrations', '*.js')],
     synchronize: false,
     autoLoadEntities: true,
   }),
