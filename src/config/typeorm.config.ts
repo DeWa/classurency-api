@@ -15,8 +15,9 @@ export const typeOrmConfig: TypeOrmModuleAsyncOptions = {
     username: config.get<string>('DB_USER', 'postgres'),
     password: config.get<string>('DB_PASSWORD', 'postgres'),
     /**
-     * Prefer `process.env.DB_NAME` so tooling (e.g. Jest e2e `setupFiles`) can target a DB
-     * without being overridden by `.env` — ConfigService resolves file-based env before `process.env`.
+     * Prefer `process.env.DB_NAME` so tooling (e.g. Jest e2e `setupFiles`) that mutates
+     * environment variables at runtime can target a specific DB, even if ConfigService
+     * has already read configuration values earlier in the app lifecycle.
      */
     database: process.env.DB_NAME ?? config.get<string>('DB_NAME', 'classurency'),
     entities: [User, Transaction, Block],
