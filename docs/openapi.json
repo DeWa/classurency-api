@@ -490,7 +490,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Item"
+                  "$ref": "#/components/schemas/ItemResponseDto"
                 }
               }
             }
@@ -529,7 +529,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/Item"
+                    "$ref": "#/components/schemas/ItemResponseDto"
                   }
                 }
               }
@@ -579,7 +579,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Item"
+                  "$ref": "#/components/schemas/ItemResponseDto"
                 }
               }
             }
@@ -1179,9 +1179,57 @@
           "value"
         ]
       },
-      "Item": {
+      "ItemResponseDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Item ID",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "description": "Display name"
+          },
+          "description": {
+            "type": "string",
+            "description": "Description"
+          },
+          "value": {
+            "type": "number",
+            "description": "Unit value"
+          },
+          "amount": {
+            "type": "number",
+            "description": "Stock amount; null means unlimited / not tracked",
+            "nullable": true
+          },
+          "providerId": {
+            "type": "string",
+            "description": "Owning item-provider ID",
+            "format": "uuid"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "Creation timestamp"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "Last update timestamp"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "value",
+          "amount",
+          "providerId",
+          "createdAt",
+          "updatedAt"
+        ]
       },
       "MintDto": {
         "type": "object",
