@@ -33,6 +33,15 @@ export class GetUserResponseDto {
 
   @ApiProperty({
     required: false,
+    format: 'uuid',
+    description: 'Item provider id when the user type is provider and an item provider exists.',
+  })
+  @IsOptional()
+  @IsUUID()
+  providerId?: string;
+
+  @ApiProperty({
+    required: false,
     type: [UserAccountSummaryDto],
     description: 'Included when the request uses includeAccounts=true.',
   })

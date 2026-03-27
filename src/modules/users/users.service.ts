@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CryptoService } from '@common/crypto/crypto.service';
 import { Account } from '@modules/accounts/account.entity';
+import { ItemProvidersService } from '@modules/item-providers/item-providers.service';
 import { User, UserType } from './user.entity';
 import { UserAccountSummaryDto } from './dto/user-account-summary.dto';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -18,6 +19,7 @@ export class UsersService {
     @InjectRepository(User)
     private readonly usersRepo: Repository<User>,
     private readonly cryptoService: CryptoService,
+    private readonly itemProvidersService: ItemProvidersService,
   ) {}
 
   /**
@@ -112,10 +114,13 @@ export class UsersService {
     if (!user) {
       throw new NotFoundException('User not found');
     }
+    const providerId =
+      user.type === UserType.PROVIDER ? await this.itemProvidersService.findProviderIdByUserId(userId) : undefined;
+    const withProviderId = providerId !== undefined ? Object.assign(user, { providerId }) : user;
     if (!options?.includeAccounts) {
-      return user;
+      return withProviderId;
     }
-    return Object.assign(user, {
+    return Object.assign(withProviderId, {
       accounts: (user.accounts ?? []).map((account) => this.mapAccountToSummary(account)),
     });
   }

@@ -234,6 +234,44 @@
         ]
       }
     },
+    "/api/v1/item-providers": {
+      "post": {
+        "description": "Admin creates an item provider for a user account.",
+        "operationId": "ItemProvidersController_createItemProvider_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateItemProviderDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Item provider created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemProvider"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create item provider",
+        "tags": [
+          "Item Providers"
+        ]
+      }
+    },
     "/api/v1/transactions": {
       "get": {
         "description": "Returns transactions where the current user is involved (source account, destination account, or mint).",
@@ -417,6 +455,144 @@
         "summary": "Create account",
         "tags": [
           "Accounts"
+        ]
+      }
+    },
+    "/api/v1/item-providers/{providerId}/items": {
+      "post": {
+        "description": "Creates an item for an item-provider owned by the caller.",
+        "operationId": "ItemsController_createProviderItem_v1",
+        "parameters": [
+          {
+            "name": "providerId",
+            "required": true,
+            "in": "path",
+            "description": "Provider ID",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateProviderItemDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Item created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Item"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create provider item",
+        "tags": [
+          "Items"
+        ]
+      },
+      "get": {
+        "description": "Lists items for an item-provider owned by the caller.",
+        "operationId": "ItemsController_listProviderItems_v1",
+        "parameters": [
+          {
+            "name": "providerId",
+            "required": true,
+            "in": "path",
+            "description": "Provider ID",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Items retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Item"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List provider items",
+        "tags": [
+          "Items"
+        ]
+      }
+    },
+    "/api/v1/item-providers/{providerId}/items/{itemId}": {
+      "get": {
+        "description": "Gets one item by id for an item-provider owned by the caller.",
+        "operationId": "ItemsController_getProviderItem_v1",
+        "parameters": [
+          {
+            "name": "providerId",
+            "required": true,
+            "in": "path",
+            "description": "Provider ID",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "itemId",
+            "required": true,
+            "in": "path",
+            "description": "Item ID",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Item retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Item"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get provider item",
+        "tags": [
+          "Items"
         ]
       }
     },
@@ -673,6 +849,11 @@
             "type": "string",
             "description": "User type"
           },
+          "providerId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Item provider id when the user type is provider and an item provider exists."
+          },
           "accounts": {
             "description": "Included when the request uses includeAccounts=true.",
             "type": "array",
@@ -723,6 +904,34 @@
         "required": [
           "token"
         ]
+      },
+      "CreateItemProviderDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Main shop counter"
+          },
+          "userId": {
+            "type": "string",
+            "example": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+            "description": "The user that owns this provider."
+          },
+          "accountId": {
+            "type": "string",
+            "example": "9c7bb5eb-1684-49b2-bf1d-7f8ec8f0b6a4",
+            "description": "Account to receive funds for this provider. Must belong to userId."
+          }
+        },
+        "required": [
+          "name",
+          "userId",
+          "accountId"
+        ]
+      },
+      "ItemProvider": {
+        "type": "object",
+        "properties": {}
       },
       "TransactionResponseDto": {
         "type": "object",
@@ -941,6 +1150,38 @@
           "pin",
           "encryptedPrivateKeyForCard"
         ]
+      },
+      "CreateProviderItemDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Soda can"
+          },
+          "description": {
+            "type": "string",
+            "example": "330ml soda"
+          },
+          "value": {
+            "type": "number",
+            "example": 1.5,
+            "description": "Price in currency units."
+          },
+          "amount": {
+            "type": "number",
+            "example": 10,
+            "description": "If omitted/null, stock is not tracked (unlimited)."
+          }
+        },
+        "required": [
+          "name",
+          "description",
+          "value"
+        ]
+      },
+      "Item": {
+        "type": "object",
+        "properties": {}
       },
       "MintDto": {
         "type": "object",
