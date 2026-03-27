@@ -255,7 +255,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ItemProvider"
+                  "$ref": "#/components/schemas/ItemProviderResponseDto"
                 }
               }
             }
@@ -929,9 +929,47 @@
           "accountId"
         ]
       },
-      "ItemProvider": {
+      "ItemProviderResponseDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Item-provider ID",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "description": "Display name"
+          },
+          "userId": {
+            "type": "string",
+            "description": "Owning user ID",
+            "format": "uuid"
+          },
+          "accountId": {
+            "type": "string",
+            "description": "Linked account ID",
+            "format": "uuid"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "Creation timestamp"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "Last update timestamp"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "userId",
+          "accountId",
+          "createdAt",
+          "updatedAt"
+        ]
       },
       "TransactionResponseDto": {
         "type": "object",
