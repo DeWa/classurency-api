@@ -10,6 +10,8 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { typeOrmConfig } from './config/typeorm.config';
 import { AuthModule } from '@modules/auth/auth.module';
+import { ItemProvidersModule } from '@modules/item-providers/item-providers.module';
+import { ItemsModule } from '@modules/items/items.module';
 
 @Module({
   imports: [
@@ -21,6 +23,8 @@ import { AuthModule } from '@modules/auth/auth.module';
     TransactionsModule,
     AdminModule,
     AuthModule,
+    ItemProvidersModule,
+    ItemsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

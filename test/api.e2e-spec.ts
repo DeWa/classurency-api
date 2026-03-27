@@ -33,6 +33,14 @@ type E2eAdminFixture = {
   readonly adminPassword: string;
 };
 
+type E2eProviderFixture = {
+  readonly providerUserId: string;
+  readonly providerUserName: string;
+  readonly providerPassword: string;
+  readonly providerToken: string;
+  readonly providerAccountId: string;
+};
+
 async function seedAdminUser(app: INestApplication): Promise<E2eAdminFixture> {
   const cryptoService: CryptoService = app.get(CryptoService);
   const dataSource: DataSource = app.get(DataSource);
@@ -60,6 +68,34 @@ async function seedAdminUser(app: INestApplication): Promise<E2eAdminFixture> {
     adminAccountId: adminAccount.id,
     adminUserName,
     adminPassword,
+  };
+}
+
+async function seedProviderUser(app: INestApplication, providerUserName: string): Promise<E2eProviderFixture> {
+  const cryptoService: CryptoService = app.get(CryptoService);
+  const dataSource: DataSource = app.get(DataSource);
+  const accountsService: AccountsService = app.get(AccountsService);
+  const userRepo = dataSource.getRepository(User);
+  const providerPassword = `${providerUserName}-password-secure`;
+  const providerUser = userRepo.create({
+    name: providerUserName,
+    userName: providerUserName,
+    passwordHash: await cryptoService.hashPassword(providerPassword),
+    type: UserType.PROVIDER,
+  });
+  await userRepo.save(providerUser);
+  await accountsService.createAccount({ userId: providerUser.id });
+  const providerAccount = await dataSource.getRepository(Account).findOne({ where: { userId: providerUser.id } });
+  if (!providerAccount) {
+    throw new Error('E2E: provider account missing after createAccount');
+  }
+  const providerToken = await loginViaApi(app, providerUserName, providerPassword);
+  return {
+    providerUserId: providerUser.id,
+    providerUserName,
+    providerPassword,
+    providerToken,
+    providerAccountId: providerAccount.id,
   };
 }
 
@@ -150,6 +186,107 @@ describe('API (e2e)', () => {
     });
   });
 
+  describe('Item providers and items', () => {
+    it('allows admin to create an item provider with accountId', async () => {
+      const provider = await seedProviderUser(app, 'e2e-provider-admin-create');
+      const createProviderRes = await request(app.getHttpServer())
+        .post(`${API_PREFIX}/item-providers`)
+        .set(bearer(admin.adminToken))
+        .send({ name: 'Cafeteria', userId: provider.providerUserId, accountId: provider.providerAccountId })
+        .expect(201);
+      const createProviderBody = createProviderRes.body as {
+        id: string;
+        userId: string;
+        accountId: string;
+        name: string;
+      };
+      expect(createProviderBody.id).toBeTruthy();
+      expect(createProviderBody.userId).toBe(provider.providerUserId);
+      expect(createProviderBody.accountId).toBe(provider.providerAccountId);
+      expect(createProviderBody.name).toBe('Cafeteria');
+    });
+
+    it('lets a provider create, list, and get own provider items', async () => {
+      const provider = await seedProviderUser(app, 'e2e-provider-owner');
+      const providerRes = await request(app.getHttpServer())
+        .post(`${API_PREFIX}/item-providers`)
+        .set(bearer(admin.adminToken))
+        .send({ name: 'Provider Shop', userId: provider.providerUserId, accountId: provider.providerAccountId })
+        .expect(201);
+      const providerId: string = (providerRes.body as { id: string }).id;
+      const meRes = await request(app.getHttpServer())
+        .get(`${API_PREFIX}/users/me`)
+        .set(bearer(provider.providerToken))
+        .expect(200);
+      expect((meRes.body as { providerId?: string }).providerId).toBe(providerId);
+      const createItemRes = await request(app.getHttpServer())
+        .post(`${API_PREFIX}/item-providers/${providerId}/items`)
+        .set(bearer(provider.providerToken))
+        .send({
+          name: 'Juice',
+          description: 'Orange',
+          value: 3,
+          amount: 10,
+        })
+        .expect(201);
+      const createdItem = createItemRes.body as { id: string; name: string; providerId: string };
+      expect(createdItem.id).toBeTruthy();
+      expect(createdItem.name).toBe('Juice');
+      expect(createdItem.providerId).toBe(providerId);
+      const listRes = await request(app.getHttpServer())
+        .get(`${API_PREFIX}/item-providers/${providerId}/items`)
+        .set(bearer(provider.providerToken))
+        .expect(200);
+      const listedItems = listRes.body as Array<{ id: string }>;
+      expect(listedItems.some((item) => item.id === createdItem.id)).toBe(true);
+      const getRes = await request(app.getHttpServer())
+        .get(`${API_PREFIX}/item-providers/${providerId}/items/${createdItem.id}`)
+        .set(bearer(provider.providerToken))
+        .expect(200);
+      const itemBody = getRes.body as { id: string; providerId: string };
+      expect(itemBody.id).toBe(createdItem.id);
+      expect(itemBody.providerId).toBe(providerId);
+    });
+
+    it('rejects normal user from provider item routes', async () => {
+      const userCreate = await request(app.getHttpServer())
+        .post(`${API_PREFIX}/users`)
+        .set(bearer(admin.adminToken))
+        .send({ name: 'Plain User', userName: 'e2e-plain-user' })
+        .expect(201);
+      const userPassword: string = (userCreate.body as { password: string }).password;
+      const userToken = await loginViaApi(app, 'e2e-plain-user', userPassword);
+      await request(app.getHttpServer())
+        .get(`${API_PREFIX}/item-providers/provider-id/items`)
+        .set(bearer(userToken))
+        .expect(401);
+    });
+
+    it('prevents a provider from managing another provider items', async () => {
+      const providerOne = await seedProviderUser(app, 'e2e-provider-one');
+      const providerOneEntity = await request(app.getHttpServer())
+        .post(`${API_PREFIX}/item-providers`)
+        .set(bearer(admin.adminToken))
+        .send({
+          name: 'Provider One Shop',
+          userId: providerOne.providerUserId,
+          accountId: providerOne.providerAccountId,
+        })
+        .expect(201);
+      const providerOneProviderId: string = (providerOneEntity.body as { id: string }).id;
+      await request(app.getHttpServer())
+        .post(`${API_PREFIX}/item-providers/${providerOneProviderId}/items`)
+        .set(bearer(providerOne.providerToken))
+        .send({ name: 'Owner Item', description: 'Only owner', value: 2, amount: 5 })
+        .expect(201);
+      const providerTwo = await seedProviderUser(app, 'e2e-provider-two');
+      await request(app.getHttpServer())
+        .get(`${API_PREFIX}/item-providers/${providerOneProviderId}/items`)
+        .set(bearer(providerTwo.providerToken))
+        .expect(400);
+    });
+  });
+
   describe('Purchase item', () => {
     it('debits the buyer and credits the provider account', async () => {
       const itemsService: ItemsService = app.get(ItemsService);
@@ -178,7 +315,7 @@ describe('API (e2e)', () => {
         accountId: sellerAccountId,
       });
       await providerRepo.save(provider);
-      const item = await itemsService.addItemToProvider(provider.id, 'Juice', 'Orange', 3.0, 10);
+      const item = await itemsService.addItemToProvider(provider, 'Juice', 'Orange', 3.0, 10);
       const buyerCreate = await request(app.getHttpServer())
         .post(`${API_PREFIX}/users`)
         .set(bearer(admin.adminToken))
@@ -205,7 +342,8 @@ describe('API (e2e)', () => {
         })
         .expect(201);
       const buyerPin: string = (buyerAccountRes.body as { pin: string }).pin;
-      const buyerKey: string = (buyerAccountRes.body as { encryptedPrivateKeyForCard: string }).encryptedPrivateKeyForCard;
+      const buyerKey: string = (buyerAccountRes.body as { encryptedPrivateKeyForCard: string })
+        .encryptedPrivateKeyForCard;
       const buyerLoginToken: string = await loginViaApi(
         app,
         'e2e-buyer',
@@ -409,10 +547,7 @@ describe('API (e2e)', () => {
         .send({ userId, privilege: ApiTokenPrivilege.USER })
         .expect(201);
       const apiToken: string = (tokenRes.body as { token: string }).token;
-      const me = await request(app.getHttpServer())
-        .get(`${API_PREFIX}/users/me`)
-        .set(bearer(apiToken))
-        .expect(200);
+      const me = await request(app.getHttpServer()).get(`${API_PREFIX}/users/me`).set(bearer(apiToken)).expect(200);
       expect((me.body as { id: string }).id).toBe(userId);
     });
   });

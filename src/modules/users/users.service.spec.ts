@@ -18,10 +18,15 @@ describe('UsersService', () => {
   function createService(params: {
     usersRepo: { findOne: jest.Mock; save: jest.Mock };
     cryptoService: { hashPassword: jest.Mock };
+    itemProvidersService?: { findProviderIdByUserId: jest.Mock };
   }): UsersServiceType {
+    const itemProvidersService = params.itemProvidersService ?? {
+      findProviderIdByUserId: jest.fn().mockResolvedValue(undefined),
+    };
     return new UsersService(
       params.usersRepo as unknown as Repository<UserEntity>,
       params.cryptoService as unknown,
+      itemProvidersService as unknown,
     );
   }
 
@@ -101,6 +106,51 @@ describe('UsersService', () => {
 
       expect(usersRepo.save).toHaveBeenCalled();
       expect(response.type).toBe(UserType.USER);
+    });
+  });
+
+  describe('getUser()', () => {
+    it('includes providerId when user type is provider and a provider exists', async () => {
+      const providerUser: User = {
+        id: 'user-id',
+        name: 'P',
+        userName: 'p',
+        passwordHash: 'h',
+        type: UserType.PROVIDER,
+        accounts: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      const usersRepo = { findOne: jest.fn().mockResolvedValue(providerUser), save: jest.fn() };
+      const cryptoService = { hashPassword: jest.fn() };
+      const itemProvidersService = { findProviderIdByUserId: jest.fn().mockResolvedValue('provider-uuid') };
+      const service = createService({ usersRepo, cryptoService, itemProvidersService });
+
+      const actual = await service.getUser('user-id');
+
+      expect(itemProvidersService.findProviderIdByUserId).toHaveBeenCalledWith('user-id');
+      expect((actual as { providerId?: string }).providerId).toBe('provider-uuid');
+    });
+
+    it('does not call item providers when user type is not provider', async () => {
+      const normalUser: User = {
+        id: 'user-id',
+        name: 'U',
+        userName: 'u',
+        passwordHash: 'h',
+        type: UserType.USER,
+        accounts: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      const usersRepo = { findOne: jest.fn().mockResolvedValue(normalUser), save: jest.fn() };
+      const cryptoService = { hashPassword: jest.fn() };
+      const itemProvidersService = { findProviderIdByUserId: jest.fn() };
+      const service = createService({ usersRepo, cryptoService, itemProvidersService });
+
+      await service.getUser('user-id');
+
+      expect(itemProvidersService.findProviderIdByUserId).not.toHaveBeenCalled();
     });
   });
 });
