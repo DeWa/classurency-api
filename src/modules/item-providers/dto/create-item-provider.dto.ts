@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsString, IsUUID, Length } from 'class-validator';
+import { IsString, IsUUID, Length } from 'class-validator';
 
 export class CreateItemProviderDto {
   @ApiProperty({ example: 'Main shop counter' })
@@ -8,11 +8,16 @@ export class CreateItemProviderDto {
   name!: string;
 
   @ApiProperty({
-    required: false,
     example: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
-    description: 'Only allowed for admin tokens. If omitted, binds to token user.',
+    description: 'The user that owns this provider.',
   })
-  @IsOptional()
   @IsUUID()
-  userId?: string;
+  userId!: string;
+
+  @ApiProperty({
+    example: '9c7bb5eb-1684-49b2-bf1d-7f8ec8f0b6a4',
+    description: 'Account to receive funds for this provider. Must belong to userId.',
+  })
+  @IsUUID()
+  accountId!: string;
 }
