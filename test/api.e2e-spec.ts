@@ -315,7 +315,7 @@ describe('API (e2e)', () => {
         accountId: sellerAccountId,
       });
       await providerRepo.save(provider);
-      const item = await itemsService.addItemToProvider(provider.id, 'Juice', 'Orange', 3.0, 10);
+      const item = await itemsService.addItemToProvider(provider, 'Juice', 'Orange', 3.0, 10);
       const buyerCreate = await request(app.getHttpServer())
         .post(`${API_PREFIX}/users`)
         .set(bearer(admin.adminToken))

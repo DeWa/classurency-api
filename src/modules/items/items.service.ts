@@ -9,8 +9,6 @@ export class ItemsService {
   constructor(
     @InjectRepository(Item)
     private readonly itemsRepo: Repository<Item>,
-    @InjectRepository(ItemProvider)
-    private readonly providersRepo: Repository<ItemProvider>,
   ) {}
 
   async listByProvider(providerId: string) {
@@ -20,13 +18,16 @@ export class ItemsService {
     });
   }
 
-  async addItemToProvider(providerId: string, name: string, description: string, value: number, amount: number | null) {
-    const provider = await this.providersRepo.findOne({
-      where: { id: providerId },
-    });
-    if (!provider) {
-      throw new BadRequestException('Provider not found');
-    }
+  /**
+   * Creates an item for a provider that has already been loaded (e.g. after an ownership check).
+   */
+  async addItemToProvider(
+    provider: ItemProvider,
+    name: string,
+    description: string,
+    value: number,
+    amount: number | null,
+  ) {
     const item = this.itemsRepo.create({
       name,
       description,

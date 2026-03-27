@@ -21,9 +21,10 @@ describe('ItemsController', () => {
 
   describe('createProviderItem()', () => {
     it('checks ownership and creates item under provider', async () => {
+      const mockProvider = { id: 'provider-1' };
       const createdItem: Partial<Item> = { id: 'item-1', providerId: 'provider-1', name: 'Soda' };
       const itemsService = { addItemToProvider: jest.fn().mockResolvedValue(createdItem) };
-      const itemProvidersService = { getForUserOrFail: jest.fn().mockResolvedValue({ id: 'provider-1' }) };
+      const itemProvidersService = { getForUserOrFail: jest.fn().mockResolvedValue(mockProvider) };
       const controller = new ItemsController(itemsService as never, itemProvidersService as never);
       const inputDto: CreateProviderItemDto = {
         name: 'Soda',
@@ -35,7 +36,7 @@ describe('ItemsController', () => {
       const actualItem = await controller.createProviderItem('provider-1', inputDto, createRequest('user-1'));
 
       expect(itemProvidersService.getForUserOrFail).toHaveBeenCalledWith('provider-1', 'user-1');
-      expect(itemsService.addItemToProvider).toHaveBeenCalledWith('provider-1', 'Soda', '330ml', 1.5, 10);
+      expect(itemsService.addItemToProvider).toHaveBeenCalledWith(mockProvider, 'Soda', '330ml', 1.5, 10);
       expect(actualItem).toEqual(createdItem);
     });
 

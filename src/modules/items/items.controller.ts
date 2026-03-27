@@ -49,8 +49,8 @@ export class ItemsController {
     if (!userId) {
       throw new UnauthorizedException('Missing auth context');
     }
-    await this.itemProvidersService.getForUserOrFail(providerId, userId);
-    return this.itemsService.addItemToProvider(providerId, dto.name, dto.description, dto.value, dto.amount ?? null);
+    const provider = await this.itemProvidersService.getForUserOrFail(providerId, userId);
+    return this.itemsService.addItemToProvider(provider, dto.name, dto.description, dto.value, dto.amount ?? null);
   }
 
   @Get()
