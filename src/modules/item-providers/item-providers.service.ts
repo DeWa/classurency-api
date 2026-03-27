@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { User } from '@modules/users/user.entity';
+import { User, UserType } from '@modules/users/user.entity';
 import { Account } from '@modules/accounts/account.entity';
 import { ItemProvider } from './item-provider.entity';
 
@@ -48,6 +48,9 @@ export class ItemProvidersService {
     const user = await this.usersRepo.findOne({ where: { id: userId } });
     if (!user) {
       throw new BadRequestException('User not found');
+    }
+    if (user.type !== UserType.PROVIDER) {
+      throw new BadRequestException('User must have type provider to be linked as an item provider');
     }
     const account = await this.accountsRepo.findOne({ where: { id: accountId } });
     if (!account) {

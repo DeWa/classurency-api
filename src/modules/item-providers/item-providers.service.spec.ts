@@ -1,6 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
 import type { Repository } from 'typeorm';
-import type { User } from '@modules/users/user.entity';
+import { UserType, type User } from '@modules/users/user.entity';
 import type { Account } from '@modules/accounts/account.entity';
 import type { ItemProvider } from './item-provider.entity';
 import { ItemProvidersService } from './item-providers.service';
@@ -22,7 +22,7 @@ describe('ItemProvidersService', () => {
 
   describe('createForUser()', () => {
     it('creates provider when user and account ownership are valid', async () => {
-      const user: Partial<User> = { id: 'user-1' };
+      const user: Partial<User> = { id: 'user-1', type: UserType.PROVIDER };
       const account: Partial<Account> = { id: 'account-1', userId: 'user-1' };
       const provider: Partial<ItemProvider> = { id: 'provider-1', userId: 'user-1', accountId: 'account-1' };
       const providersRepo = {
@@ -59,8 +59,22 @@ describe('ItemProvidersService', () => {
       expect(accountsRepo.findOne).not.toHaveBeenCalled();
     });
 
+    it('throws when user is not a provider', async () => {
+      const user: Partial<User> = { id: 'user-1', type: UserType.USER };
+      const providersRepo = { create: jest.fn(), save: jest.fn(), find: jest.fn(), findOne: jest.fn() };
+      const usersRepo = { findOne: jest.fn().mockResolvedValue(user) };
+      const accountsRepo = { findOne: jest.fn() };
+      const service = createService({ providersRepo, usersRepo, accountsRepo });
+
+      await expect(service.createForUser('user-1', 'account-1', 'Cafeteria')).rejects.toThrow(
+        'User must have type provider to be linked as an item provider',
+      );
+      expect(accountsRepo.findOne).not.toHaveBeenCalled();
+      expect(providersRepo.create).not.toHaveBeenCalled();
+    });
+
     it('throws when account does not belong to user', async () => {
-      const user: Partial<User> = { id: 'user-1' };
+      const user: Partial<User> = { id: 'user-1', type: UserType.PROVIDER };
       const account: Partial<Account> = { id: 'account-1', userId: 'user-2' };
       const providersRepo = { create: jest.fn(), save: jest.fn(), find: jest.fn(), findOne: jest.fn() };
       const usersRepo = { findOne: jest.fn().mockResolvedValue(user) };
