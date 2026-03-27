@@ -21,9 +21,10 @@ export class CreateProviderItemDto {
     required: false,
     example: 10,
     description: 'If omitted/null, stock is not tracked (unlimited).',
+    nullable: true,
   })
   @IsOptional()
   @IsInt()
   @Min(0)
-  amount?: number;
+  amount?: number | null;
 }
