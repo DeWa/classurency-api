@@ -15,6 +15,7 @@ export class RequestTokenDto {
     example: 'provider',
     enum: ApiTokenPrivilege,
     description: 'Requested privilege for the issued token (defaults to user).',
+    required: false,
   })
   @IsOptional()
   @IsEnum(ApiTokenPrivilege)

@@ -36,17 +36,21 @@ export class AccountListOwnerDto {
  * Query parameters for GET /accounts (admin).
  */
 export class ListAccountsQueryDto {
-  @ApiPropertyOptional({ format: 'uuid', description: 'Return only accounts owned by this user.' })
+  @ApiPropertyOptional({ format: 'uuid', description: 'Return only accounts owned by this user.', required: false })
   @IsOptional()
   @IsUUID()
   userId?: string;
 
-  @ApiPropertyOptional({ enum: UserType, description: 'Return only accounts whose owner has this user type.' })
+  @ApiPropertyOptional({
+    enum: UserType,
+    description: 'Return only accounts whose owner has this user type.',
+    required: false,
+  })
   @IsOptional()
   @IsEnum(UserType)
   ownerType?: UserType;
 
-  @ApiPropertyOptional({ description: 'Return only locked (true) or unlocked (false) accounts.' })
+  @ApiPropertyOptional({ description: 'Return only locked (true) or unlocked (false) accounts.', required: false })
   @Transform(({ value }: { value: unknown }) => {
     if (value === undefined || value === null || value === '') {
       return undefined;
@@ -67,6 +71,7 @@ export class ListAccountsQueryDto {
     description:
       'Case-insensitive substring match on NFC card UID, owner display name, or owner login name (userName).',
     maxLength: 128,
+    required: false,
   })
   @Transform(({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() || undefined : value))
   @IsOptional()
@@ -78,6 +83,7 @@ export class ListAccountsQueryDto {
     type: Number,
     default: DEFAULT_LIST_ACCOUNTS_LIMIT,
     description: `Page size (default ${DEFAULT_LIST_ACCOUNTS_LIMIT}, max ${MAX_LIST_ACCOUNTS_LIMIT}).`,
+    required: false,
   })
   @Type(() => Number)
   @IsOptional()
@@ -86,7 +92,12 @@ export class ListAccountsQueryDto {
   @Max(MAX_LIST_ACCOUNTS_LIMIT)
   limit?: number;
 
-  @ApiPropertyOptional({ type: Number, default: 0, description: 'Number of rows to skip (pagination).' })
+  @ApiPropertyOptional({
+    type: Number,
+    default: 0,
+    description: 'Number of rows to skip (pagination).',
+    required: false,
+  })
   @Type(() => Number)
   @IsOptional()
   @IsInt()

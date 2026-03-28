@@ -13,7 +13,7 @@ export const MAX_LIST_USERS_LIMIT = 100;
  * Query parameters for GET /users (admin).
  */
 export class ListUsersQueryDto {
-  @ApiPropertyOptional({ enum: UserType, description: 'Return only users of this type.' })
+  @ApiPropertyOptional({ enum: UserType, description: 'Return only users of this type.', required: false })
   @IsOptional()
   @IsEnum(UserType)
   type?: UserType;
@@ -21,6 +21,7 @@ export class ListUsersQueryDto {
   @ApiPropertyOptional({
     description: 'Case-insensitive substring match on display name or login name (userName).',
     maxLength: 128,
+    required: false,
   })
   @Transform(({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() || undefined : value))
   @IsOptional()
@@ -32,6 +33,7 @@ export class ListUsersQueryDto {
     type: Number,
     default: DEFAULT_LIST_USERS_LIMIT,
     description: `Page size (default ${DEFAULT_LIST_USERS_LIMIT}, max ${MAX_LIST_USERS_LIMIT}).`,
+    required: false,
   })
   @Type(() => Number)
   @IsOptional()
@@ -40,7 +42,12 @@ export class ListUsersQueryDto {
   @Max(MAX_LIST_USERS_LIMIT)
   limit?: number;
 
-  @ApiPropertyOptional({ type: Number, default: 0, description: 'Number of rows to skip (pagination).' })
+  @ApiPropertyOptional({
+    type: Number,
+    default: 0,
+    description: 'Number of rows to skip (pagination).',
+    required: false,
+  })
   @Type(() => Number)
   @IsOptional()
   @IsInt()
