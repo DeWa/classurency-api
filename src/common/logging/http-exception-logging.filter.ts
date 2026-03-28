@@ -1,6 +1,6 @@
 import { ArgumentsHost, Catch, HttpException, HttpStatus } from '@nestjs/common';
 import type { HttpServer } from '@nestjs/common';
-import { AbstractHttpAdapter, BaseExceptionFilter } from '@nestjs/core';
+import { AbstractHttpAdapter, BaseExceptionFilter, HttpAdapterHost } from '@nestjs/core';
 import type { Response } from 'express';
 import { PinoLogger } from 'nestjs-pino';
 
@@ -11,8 +11,11 @@ const UNKNOWN_EXCEPTION_MESSAGE = 'Internal server error' as const;
  */
 @Catch()
 export class HttpExceptionLoggingFilter extends BaseExceptionFilter {
-  public constructor(private readonly logger: PinoLogger) {
-    super();
+  public constructor(
+    private readonly logger: PinoLogger,
+    httpAdapterHost: HttpAdapterHost,
+  ) {
+    super(httpAdapterHost.httpAdapter);
   }
 
   public catch(exception: unknown, host: ArgumentsHost): void {
