@@ -12,8 +12,8 @@ import type { Transaction } from './transaction.entity';
 import type { TransactionsService as TransactionsServiceType } from './transactions.service';
 import type { TransferDto as TransferDtoType } from './dto/transfer.dto';
 
-/* eslint-disable @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return */
-// eslint-disable-next-line @typescript-eslint/no-var-requires
+/* eslint-disable @typescript-eslint/no-require-imports, @typescript-eslint/no-unsafe-assignment */
+
 const {
   TransactionsService,
 }: {

@@ -34,4 +34,3 @@ export class CreateItemDto {
   @IsUUID()
   providerId!: string;
 }
-

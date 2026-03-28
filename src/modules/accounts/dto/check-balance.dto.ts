@@ -25,8 +25,7 @@ export class CheckBalanceDto {
 
   @ApiProperty({
     example: 'BASE64_ENCRYPTED_PRIVATE_KEY_FROM_CARD==',
-    description:
-      'Encrypted private key blob read from the NFC card (base64 string).',
+    description: 'Encrypted private key blob read from the NFC card (base64 string).',
   })
   @IsString()
   @IsNotEmpty()

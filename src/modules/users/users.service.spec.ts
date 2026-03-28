@@ -4,13 +4,12 @@ import type { User as UserEntity } from './user.entity';
 import { User, UserType } from './user.entity';
 import type { UpdateUserRequestDto } from './dto/update-user.dto';
 
-/* eslint-disable @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return */
-// eslint-disable-next-line @typescript-eslint/no-var-requires
+/* eslint-disable @typescript-eslint/no-require-imports, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access */
+
 jest.mock('@common/crypto/crypto.service', () => ({
   CryptoService: class CryptoService {},
 }));
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 const { UsersService }: { UsersService: typeof import('./users.service').UsersService } = require('./users.service');
 type UsersServiceType = InstanceType<typeof UsersService>;
 
@@ -48,15 +47,24 @@ describe('UsersService', () => {
       const cryptoService = { hashPassword: jest.fn() };
       const service = createService({ usersRepo, cryptoService });
 
-      await expect(
-        service.updateUser('user-id', 'user-id', {} as UpdateUserRequestDto),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.updateUser('user-id', 'user-id', {} as UpdateUserRequestDto)).rejects.toThrow(
+        NotFoundException,
+      );
 
       expect(usersRepo.findOne).toHaveBeenCalledWith({ where: { id: 'user-id' } });
     });
 
     it('forbids non-admin users from changing their type', async () => {
-      const existingUser: User = { id: 'user-id', name: 'Alice', userName: 'alice', passwordHash: 'old', type: UserType.USER, accounts: [], createdAt: new Date(), updatedAt: new Date() };
+      const existingUser: User = {
+        id: 'user-id',
+        name: 'Alice',
+        userName: 'alice',
+        passwordHash: 'old',
+        type: UserType.USER,
+        accounts: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
 
       const usersRepo = { findOne: jest.fn().mockResolvedValue(existingUser), save: jest.fn() };
       const cryptoService = { hashPassword: jest.fn() };
@@ -69,7 +77,16 @@ describe('UsersService', () => {
     });
 
     it('hashes password updates into passwordHash and returns a safe response', async () => {
-      const existingUser: User = { id: 'user-id', name: 'Alice', userName: 'alice', passwordHash: 'old', type: UserType.USER, accounts: [], createdAt: new Date(), updatedAt: new Date() };
+      const existingUser: User = {
+        id: 'user-id',
+        name: 'Alice',
+        userName: 'alice',
+        passwordHash: 'old',
+        type: UserType.USER,
+        accounts: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
 
       const usersRepo = {
         findOne: jest.fn().mockResolvedValue(existingUser),
@@ -91,7 +108,16 @@ describe('UsersService', () => {
     });
 
     it('allows admins to update their type', async () => {
-      const existingUser: User = { id: 'admin-user-id', name: 'Admin', userName: 'admin', passwordHash: 'old', type: UserType.ADMIN, accounts: [], createdAt: new Date(), updatedAt: new Date() };
+      const existingUser: User = {
+        id: 'admin-user-id',
+        name: 'Admin',
+        userName: 'admin',
+        passwordHash: 'old',
+        type: UserType.ADMIN,
+        accounts: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
 
       const usersRepo = {
         findOne: jest.fn().mockResolvedValue(existingUser),
@@ -154,4 +180,3 @@ describe('UsersService', () => {
     });
   });
 });
-
