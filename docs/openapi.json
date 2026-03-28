@@ -272,78 +272,6 @@
         ]
       }
     },
-    "/api/v1/transactions": {
-      "get": {
-        "description": "Returns transactions where the current user is involved (source account, destination account, or mint).",
-        "operationId": "TransactionsController_getMyTransactions_v1",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "Transactions retrieved successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/TransactionResponseDto"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "List my transactions",
-        "tags": [
-          "Transactions"
-        ]
-      }
-    },
-    "/api/v1/transactions/{id}": {
-      "get": {
-        "description": "Returns a transaction if the current user is the payer, recipient, or mint recipient.",
-        "operationId": "TransactionsController_getTransactionById_v1",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "description": "Transaction id",
-            "schema": {
-              "type": "number"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Transaction retrieved successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TransactionResponseDto"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Transaction not found or not accessible"
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "Get transaction by id",
-        "tags": [
-          "Transactions"
-        ]
-      }
-    },
     "/api/v1/transactions/transfer": {
       "post": {
         "description": "Transfer funds from the authenticated user’s NFC-backed account to a recipient account.",
@@ -453,6 +381,63 @@
           }
         ],
         "summary": "Create account",
+        "tags": [
+          "Accounts"
+        ]
+      }
+    },
+    "/api/v1/accounts/{accountId}/transactions": {
+      "get": {
+        "description": "Returns transactions where the account is the payer, payee, or mint recipient. The account owner or an admin may call this.",
+        "operationId": "AccountsController_getAccountTransactions_v1",
+        "parameters": [
+          {
+            "name": "accountId",
+            "required": true,
+            "in": "path",
+            "description": "Account ID",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "How many transactions to return (default 10, max 100).",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Transactions retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TransactionResponseDto"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Caller is not the account owner or an admin"
+          },
+          "404": {
+            "description": "Account not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List account transactions",
         "tags": [
           "Accounts"
         ]
@@ -971,53 +956,6 @@
           "updatedAt"
         ]
       },
-      "TransactionResponseDto": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "number",
-            "description": "Transaction ID"
-          },
-          "type": {
-            "type": "string",
-            "enum": [
-              "MINT",
-              "PURCHASE"
-            ],
-            "description": "Transaction kind"
-          },
-          "amount": {
-            "type": "number",
-            "description": "Transaction amount"
-          },
-          "description": {
-            "type": "object",
-            "description": "Description",
-            "nullable": true
-          },
-          "createdAt": {
-            "format": "date-time",
-            "type": "string",
-            "description": "Creation timestamp"
-          },
-          "fromAccountId": {
-            "type": "object",
-            "description": "Source account ID (payer); null when not applicable (e.g. mint)",
-            "nullable": true
-          },
-          "toAccountId": {
-            "type": "object",
-            "description": "Destination account ID",
-            "nullable": true
-          }
-        },
-        "required": [
-          "id",
-          "type",
-          "amount",
-          "createdAt"
-        ]
-      },
       "TransferDto": {
         "type": "object",
         "properties": {
@@ -1064,6 +1002,53 @@
           "value",
           "pin",
           "encryptedPrivateKeyFromCard"
+        ]
+      },
+      "TransactionResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number",
+            "description": "Transaction ID"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "MINT",
+              "PURCHASE"
+            ],
+            "description": "Transaction kind"
+          },
+          "amount": {
+            "type": "number",
+            "description": "Transaction amount"
+          },
+          "description": {
+            "type": "object",
+            "description": "Description",
+            "nullable": true
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "Creation timestamp"
+          },
+          "fromAccountId": {
+            "type": "object",
+            "description": "Source account ID (payer); null when not applicable (e.g. mint)",
+            "nullable": true
+          },
+          "toAccountId": {
+            "type": "object",
+            "description": "Destination account ID",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "amount",
+          "createdAt"
         ]
       },
       "PurchaseItemDto": {
@@ -1206,9 +1191,10 @@
             "description": "Price in currency units."
           },
           "amount": {
-            "type": "number",
+            "type": "integer",
             "example": 10,
-            "description": "If omitted/null, stock is not tracked (unlimited)."
+            "description": "If omitted/null, stock is not tracked (unlimited).",
+            "nullable": true
           }
         },
         "required": [
