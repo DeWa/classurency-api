@@ -84,8 +84,13 @@ export class UsersService {
    * @param dto - The update user request dto
    * @returns The updated user
    */
-  async updateUser(reqUserId: string, userId: string, dto: UpdateUserRequestDto): Promise<UpdateUserResponseDto> {
-    if (reqUserId !== userId) {
+  async updateUser(
+    reqUserId: string,
+    userId: string,
+    dto: UpdateUserRequestDto,
+    options?: { isAdmin?: boolean },
+  ): Promise<UpdateUserResponseDto> {
+    if (reqUserId !== userId && !options?.isAdmin) {
       throw new ForbiddenException('You are not allowed to update this user');
     }
     const user = await this.usersRepo.findOne({ where: { id: userId } });
@@ -101,7 +106,7 @@ export class UsersService {
     }
 
     if (dto.type !== undefined) {
-      if (user.type !== UserType.ADMIN) {
+      if (!options?.isAdmin) {
         throw new ForbiddenException('You are not allowed to change user type');
       }
       user.type = dto.type;
