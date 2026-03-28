@@ -7,6 +7,13 @@ import { Account } from './account.entity';
 import { AccountAttempt } from './account-attempt.entity';
 import { CreateAccountDto, CreateAccountResponseDto } from './dto/create-account.dto';
 import { CheckBalanceDto } from './dto/check-balance.dto';
+import {
+  DEFAULT_LIST_ACCOUNTS_LIMIT,
+  ListAccountsQueryDto,
+  ListAccountsResponseDto,
+  MAX_LIST_ACCOUNTS_LIMIT,
+} from './dto/list-accounts.dto';
+import { UpdateAccountAdminDto } from './dto/update-account-admin.dto';
 import * as crypto from 'node:crypto';
 
 /** Maximum recent failed login attempts before the account is locked. */
@@ -62,6 +69,87 @@ export class AccountsService {
       pin,
       encryptedPrivateKeyForCard: cardEncryptedPrivateKey,
     };
+  }
+
+  /**
+   * Lists accounts for an admin with optional filters and pagination; includes owner (user) metadata.
+   * @param query - Filters and pagination.
+   * @returns Matching accounts with owners and total count.
+   */
+  async listAccountsAsAdmin(query: ListAccountsQueryDto): Promise<ListAccountsResponseDto> {
+    const limit = Math.min(Math.max(query.limit ?? DEFAULT_LIST_ACCOUNTS_LIMIT, 1), MAX_LIST_ACCOUNTS_LIMIT);
+    const offset = query.offset ?? 0;
+    const qb = this.accountsRepo
+      .createQueryBuilder('account')
+      .innerJoin('account.user', 'owner')
+      .select([
+        'account.id',
+        'account.userId',
+        'account.nfcCardUid',
+        'account.publicKeyHex',
+        'account.balance',
+        'account.isLocked',
+        'account.createdAt',
+        'account.updatedAt',
+      ])
+      .addSelect(['owner.id', 'owner.name', 'owner.userName', 'owner.type', 'owner.createdAt', 'owner.updatedAt']);
+    if (query.userId !== undefined) {
+      qb.andWhere('account.userId = :userId', { userId: query.userId });
+    }
+    if (query.ownerType !== undefined) {
+      qb.andWhere('owner.type = :ownerType', { ownerType: query.ownerType });
+    }
+    if (query.isLocked !== undefined) {
+      qb.andWhere('account.isLocked = :isLocked', { isLocked: query.isLocked });
+    }
+    if (query.search !== undefined && query.search.length > 0) {
+      const term = `%${query.search}%`;
+      qb.andWhere('(account.nfcCardUid ILIKE :term OR owner.name ILIKE :term OR owner.userName ILIKE :term)', { term });
+    }
+    qb.orderBy('account.createdAt', 'DESC').skip(offset).take(limit);
+    const [rows, total] = await qb.getManyAndCount();
+    return {
+      accounts: rows.map((account) => {
+        const owner = account.user!;
+        return {
+          id: account.id,
+          userId: account.userId,
+          nfcCardUid: account.nfcCardUid,
+          publicKeyHex: account.publicKeyHex,
+          balance: Number(account.balance),
+          isLocked: account.isLocked,
+          createdAt: account.createdAt,
+          updatedAt: account.updatedAt,
+          owner: {
+            id: owner.id,
+            name: owner.name,
+            userName: owner.userName,
+            type: owner.type,
+            createdAt: owner.createdAt,
+            updatedAt: owner.updatedAt,
+          },
+        };
+      }),
+      total,
+    };
+  }
+
+  /**
+   * Updates admin-editable fields on an account (for example lock state).
+   */
+  async updateAccountAsAdmin(accountId: string, dto: UpdateAccountAdminDto): Promise<Account> {
+    const hasUpdate = dto.isLocked !== undefined;
+    if (!hasUpdate) {
+      throw new BadRequestException('At least one field must be provided');
+    }
+    const account = await this.accountsRepo.findOne({ where: { id: accountId } });
+    if (!account) {
+      throw new NotFoundException('Account not found');
+    }
+    if (dto.isLocked !== undefined) {
+      account.isLocked = dto.isLocked;
+    }
+    return this.accountsRepo.save(account);
   }
 
   async checkBalance(dto: CheckBalanceDto, ipAddress: string) {
