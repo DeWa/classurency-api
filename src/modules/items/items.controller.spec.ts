@@ -3,7 +3,7 @@ import type { Request } from 'express';
 import type { Item } from './item.entity';
 import type { CreateProviderItemDto } from './dto/create-provider-item.dto';
 
-/* eslint-disable @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports, @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-require-imports, @typescript-eslint/no-unsafe-assignment */
 jest.mock('@common/guards/require-privilege.decorator', () => ({
   RequirePrivilege: () => () => undefined,
 }));

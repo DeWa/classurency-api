@@ -1,7 +1,7 @@
 import type { ItemProvider } from './item-provider.entity';
 import type { CreateItemProviderDto } from './dto/create-item-provider.dto';
 
-/* eslint-disable @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports, @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-require-imports, @typescript-eslint/no-unsafe-assignment */
 jest.mock('@common/guards/require-privilege.decorator', () => ({
   RequirePrivilege: () => () => undefined,
 }));
