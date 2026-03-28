@@ -15,7 +15,7 @@ type UsersServiceType = InstanceType<typeof UsersService>;
 
 describe('UsersService', () => {
   function createService(params: {
-    usersRepo: { findOne: jest.Mock; save: jest.Mock };
+    usersRepo: { findOne: jest.Mock; save: jest.Mock; createQueryBuilder?: jest.Mock };
     cryptoService: { hashPassword: jest.Mock };
     itemProvidersService?: { findProviderIdByUserId: jest.Mock };
   }): UsersServiceType {
@@ -177,6 +177,90 @@ describe('UsersService', () => {
       await service.getUser('user-id');
 
       expect(itemProvidersService.findProviderIdByUserId).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('listUsersAsAdmin()', () => {
+    it('applies type filter, ILIKE search, pagination, and returns total', async () => {
+      const row: User = {
+        id: 'u1',
+        name: 'Alice',
+        userName: 'alice',
+        passwordHash: 'x',
+        type: UserType.USER,
+        accounts: [],
+        createdAt: new Date('2020-01-01'),
+        updatedAt: new Date('2020-01-02'),
+      };
+      const getManyAndCount = jest.fn().mockResolvedValue([[row], 42]);
+      const qb = {
+        select: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        skip: jest.fn().mockReturnThis(),
+        take: jest.fn().mockReturnThis(),
+        getManyAndCount,
+      };
+      const usersRepo = {
+        findOne: jest.fn(),
+        save: jest.fn(),
+        createQueryBuilder: jest.fn().mockReturnValue(qb),
+      };
+      const cryptoService = { hashPassword: jest.fn() };
+      const service = createService({ usersRepo, cryptoService });
+
+      const actual = await service.listUsersAsAdmin({
+        type: UserType.USER,
+        search: 'lic',
+        limit: 10,
+        offset: 5,
+      });
+
+      expect(usersRepo.createQueryBuilder).toHaveBeenCalledWith('user');
+      expect(qb.andWhere).toHaveBeenCalledWith('user.type = :type', { type: UserType.USER });
+      expect(qb.andWhere).toHaveBeenCalledWith('(user.name ILIKE :term OR user.userName ILIKE :term)', {
+        term: '%lic%',
+      });
+      expect(qb.skip).toHaveBeenCalledWith(5);
+      expect(qb.take).toHaveBeenCalledWith(10);
+      expect(actual).toEqual({
+        users: [
+          {
+            id: 'u1',
+            name: 'Alice',
+            userName: 'alice',
+            type: UserType.USER,
+            createdAt: row.createdAt,
+            updatedAt: row.updatedAt,
+          },
+        ],
+        total: 42,
+      });
+    });
+
+    it('omits optional filters when not provided', async () => {
+      const getManyAndCount = jest.fn().mockResolvedValue([[], 0]);
+      const qb = {
+        select: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        skip: jest.fn().mockReturnThis(),
+        take: jest.fn().mockReturnThis(),
+        getManyAndCount,
+      };
+      const usersRepo = {
+        findOne: jest.fn(),
+        save: jest.fn(),
+        createQueryBuilder: jest.fn().mockReturnValue(qb),
+      };
+      const cryptoService = { hashPassword: jest.fn() };
+      const service = createService({ usersRepo, cryptoService });
+
+      await service.listUsersAsAdmin({});
+
+      expect(qb.andWhere).not.toHaveBeenCalled();
+      expect(qb.skip).toHaveBeenCalledWith(0);
+      expect(qb.take).toHaveBeenCalledWith(50);
     });
   });
 });
