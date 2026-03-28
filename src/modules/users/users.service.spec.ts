@@ -121,14 +121,14 @@ describe('UsersService', () => {
 
       const usersRepo = {
         findOne: jest.fn().mockResolvedValue(existingUser),
-        save: jest.fn().mockImplementation(async (userToSave: User) => userToSave),
+        save: jest.fn().mockImplementation((userToSave: User) => Promise.resolve(userToSave)),
       };
       const cryptoService = { hashPassword: jest.fn() };
       const service = createService({ usersRepo, cryptoService });
 
       const dto: UpdateUserRequestDto = { type: UserType.USER } as UpdateUserRequestDto;
 
-      const response = await service.updateUser('admin-user-id', 'admin-user-id', dto);
+      const response = await service.updateUser('admin-user-id', 'admin-user-id', dto, { isAdmin: true });
 
       expect(usersRepo.save).toHaveBeenCalled();
       expect(response.type).toBe(UserType.USER);
