@@ -19,6 +19,7 @@ export class CreateProviderItemDto {
 
   @ApiProperty({
     required: false,
+    type: Number,
     example: 10,
     description: 'If omitted/null, stock is not tracked (unlimited).',
     nullable: true,

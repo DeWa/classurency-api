@@ -1191,7 +1191,7 @@
             "description": "Price in currency units."
           },
           "amount": {
-            "type": "object",
+            "type": "integer",
             "example": 10,
             "description": "If omitted/null, stock is not tracked (unlimited).",
             "nullable": true
