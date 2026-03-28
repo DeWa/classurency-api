@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, Repository } from 'typeorm';
 import { CryptoService } from '@common/crypto/crypto.service';
@@ -8,9 +8,15 @@ import { AccountsService } from '@modules/accounts/accounts.service';
 import { ItemsService } from '@modules/items/items.service';
 import { Item } from '@modules/items/item.entity';
 import { ApiAuthContext } from '@common/guards/api-token.guard';
+import { ApiTokenPrivilege } from '@modules/api-tokens/api-token.entity';
 import { Transaction } from './transaction.entity';
 import { TransferDto } from './dto/transfer.dto';
 import { TransactionResponseDto } from './dto/transaction-response.dto';
+
+/** Default number of transactions returned when the client omits the limit query parameter. */
+export const DEFAULT_ACCOUNT_TRANSACTIONS_LIMIT = 10;
+/** Maximum allowed limit for account transaction list queries. */
+export const MAX_ACCOUNT_TRANSACTIONS_LIMIT = 100;
 
 @Injectable()
 export class TransactionsService {
@@ -55,51 +61,36 @@ export class TransactionsService {
   }
 
   /**
-   * Lists transactions where the authenticated user is the payer, recipient, or mint recipient.
+   * Lists transactions involving an account (payer, payee, or mint recipient). Allowed for the account owner or an admin.
    *
-   * @param userId - The ID of the user.
-   * @param limit - The number of transactions to return.
-   * @param offset - The offset of the transactions to return.
+   * @param accountId - The account UUID.
+   * @param auth - Authenticated API context.
+   * @param limit - Requested number of transactions (clamped to a safe range).
    * @returns Transactions ordered by newest first.
    */
-  async findTransactionsForUser(
-    userId: string,
-    limit: number = 10,
-    offset: number = 0,
+  async findTransactionsForAccount(
+    accountId: string,
+    auth: ApiAuthContext,
+    limit: number,
   ): Promise<TransactionResponseDto[]> {
+    const account = await this.accountsRepo.findOne({ where: { id: accountId } });
+    if (!account) {
+      throw new NotFoundException('Account not found');
+    }
+    const isAdmin = auth.privilege === ApiTokenPrivilege.ADMIN;
+    if (!isAdmin && account.userId !== auth.userId) {
+      throw new ForbiddenException("You are not allowed to view this account's transactions");
+    }
+    const cappedLimit = Math.min(Math.max(limit, 1), MAX_ACCOUNT_TRANSACTIONS_LIMIT);
     const rows = await this.transactionsRepo
       .createQueryBuilder('tx')
       .leftJoinAndSelect('tx.account', 'fromAccount')
       .leftJoinAndSelect('tx.toAccount', 'toAccount')
-      .where('fromAccount.userId = :userId OR toAccount.userId = :userId', { userId })
-      .limit(limit)
-      .offset(offset)
+      .where('tx.accountId = :accountId OR tx.toAccountId = :accountId', { accountId })
       .orderBy('tx.createdAt', 'DESC')
+      .limit(cappedLimit)
       .getMany();
     return rows.map((tx) => this.mapTransactionToResponse(tx));
-  }
-
-  /**
-   * Returns a transaction by id if the user is the payer or recipient (or mint recipient).
-   *
-   * @param transactionId - Primary key of the transaction.
-   * @param userId - The ID of the requesting user.
-   * @returns The transaction payload.
-   */
-  async findTransactionByIdForUser(transactionId: number, userId: string): Promise<TransactionResponseDto> {
-    const tx = await this.transactionsRepo.findOne({
-      where: { id: transactionId },
-      relations: ['account', 'toAccount'],
-    });
-    if (!tx) {
-      throw new NotFoundException('Transaction not found');
-    }
-    const isUserFromAccount = tx.account?.userId === userId;
-    const isUserToAccount = tx.toAccount?.userId === userId;
-    if (!isUserFromAccount && !isUserToAccount) {
-      throw new NotFoundException('Transaction not found');
-    }
-    return this.mapTransactionToResponse(tx);
   }
 
   /**

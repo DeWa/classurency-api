@@ -482,8 +482,8 @@ describe('API (e2e)', () => {
     });
   });
 
-  describe('Transactions list', () => {
-    it('returns recent transactions for the current user', async () => {
+  describe('Account transactions list', () => {
+    it('returns recent transactions for an account the user owns', async () => {
       const aliceRes = await request(app.getHttpServer())
         .post(`${API_PREFIX}/users`)
         .set(bearer(admin.adminToken))
@@ -522,7 +522,7 @@ describe('API (e2e)', () => {
         .expect(201);
       const aliceToken = await loginViaApi(app, 'e2e-tx-alice', (aliceRes.body as { password: string }).password);
       const listRes = await request(app.getHttpServer())
-        .get(`${API_PREFIX}/transactions`)
+        .get(`${API_PREFIX}/accounts/${aliceAccount.id}/transactions`)
         .set(bearer(aliceToken))
         .expect(200);
       const txs = listRes.body as Array<{ type: string; amount: number }>;

@@ -1,3 +1,4 @@
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import type { Account } from '@modules/accounts/account.entity';
 import { ApiTokenPrivilege } from '@modules/api-tokens/api-token.entity';
 import type { ApiAuthContext } from '@common/guards/api-token.guard';
@@ -40,8 +41,9 @@ describe('TransactionsService', () => {
     cryptoService: { decryptCardPrivateKey: jest.Mock; publicKeyFromPrivateKeyHex: jest.Mock };
     itemsService: { findByIds: jest.Mock };
     dataSource: { manager: { transaction: jest.Mock } };
+    transactionsRepo?: Repository<Transaction>;
   }): TransactionsServiceType {
-    const transactionsRepo = {} as unknown as Repository<Transaction>;
+    const transactionsRepo = (params.transactionsRepo ?? {}) as unknown as Repository<Transaction>;
     const blockchainService = {} as unknown as BlockchainService;
     const accountsService = {} as unknown as AccountsService;
 
@@ -203,6 +205,170 @@ describe('TransactionsService', () => {
         }),
         mockManager,
       );
+    });
+  });
+
+  describe('findTransactionsForAccount()', () => {
+    function mockQueryBuilder(getManyResult: Transaction[]) {
+      const qb = {
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue(getManyResult),
+      };
+      return qb;
+    }
+
+    it('throws NotFoundException when the account does not exist', async () => {
+      const accountsRepo = { findOne: jest.fn().mockResolvedValue(null) };
+      const transactionsRepo = {
+        createQueryBuilder: jest.fn(),
+      } as unknown as Repository<Transaction>;
+      const cryptoService = {
+        decryptCardPrivateKey: jest.fn(),
+        publicKeyFromPrivateKeyHex: jest.fn(),
+      };
+      const itemsService = { findByIds: jest.fn() };
+      const dataSource = { manager: { transaction: jest.fn() } };
+      const service = createService({ accountsRepo, cryptoService, itemsService, dataSource, transactionsRepo });
+      const auth: ApiAuthContext = {
+        userId: 'user-1',
+        privilege: ApiTokenPrivilege.USER,
+        userType: UserType.USER,
+      };
+      await expect(service.findTransactionsForAccount('missing-account-id', auth, 10)).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(transactionsRepo.createQueryBuilder).not.toHaveBeenCalled();
+    });
+
+    it('throws ForbiddenException when the caller is not the owner and not admin', async () => {
+      const accountsRepo = {
+        findOne: jest.fn().mockResolvedValue({ id: 'acc-1', userId: 'owner-user-id' }),
+      };
+      const transactionsRepo = {
+        createQueryBuilder: jest.fn(),
+      } as unknown as Repository<Transaction>;
+      const cryptoService = {
+        decryptCardPrivateKey: jest.fn(),
+        publicKeyFromPrivateKeyHex: jest.fn(),
+      };
+      const itemsService = { findByIds: jest.fn() };
+      const dataSource = { manager: { transaction: jest.fn() } };
+      const service = createService({ accountsRepo, cryptoService, itemsService, dataSource, transactionsRepo });
+      const auth: ApiAuthContext = {
+        userId: 'other-user-id',
+        privilege: ApiTokenPrivilege.USER,
+        userType: UserType.USER,
+      };
+      await expect(service.findTransactionsForAccount('acc-1', auth, 10)).rejects.toThrow(ForbiddenException);
+      expect(transactionsRepo.createQueryBuilder).not.toHaveBeenCalled();
+    });
+
+    it('returns mapped transactions for the account owner', async () => {
+      const accountsRepo = {
+        findOne: jest.fn().mockResolvedValue({ id: 'acc-1', userId: 'owner-user-id' }),
+      };
+      const persistedTx = {
+        id: 1,
+        type: 'PURCHASE',
+        amount: 5,
+        description: null,
+        createdAt: new Date('2024-01-01T00:00:00.000Z'),
+        account: { id: 'acc-1', userId: 'owner-user-id' },
+        toAccount: { id: 'acc-2' },
+      } as unknown as Transaction;
+      const qb = mockQueryBuilder([persistedTx]);
+      const transactionsRepo = {
+        createQueryBuilder: jest.fn().mockReturnValue(qb),
+      } as unknown as Repository<Transaction>;
+      const cryptoService = {
+        decryptCardPrivateKey: jest.fn(),
+        publicKeyFromPrivateKeyHex: jest.fn(),
+      };
+      const itemsService = { findByIds: jest.fn() };
+      const dataSource = { manager: { transaction: jest.fn() } };
+      const service = createService({ accountsRepo, cryptoService, itemsService, dataSource, transactionsRepo });
+      const auth: ApiAuthContext = {
+        userId: 'owner-user-id',
+        privilege: ApiTokenPrivilege.USER,
+        userType: UserType.USER,
+      };
+      const actual = await service.findTransactionsForAccount('acc-1', auth, 10);
+      expect(actual).toEqual([
+        {
+          id: 1,
+          type: 'PURCHASE',
+          amount: 5,
+          description: null,
+          createdAt: persistedTx.createdAt,
+          fromAccountId: 'acc-1',
+          toAccountId: 'acc-2',
+        },
+      ]);
+      expect(qb.limit).toHaveBeenCalledWith(10);
+    });
+
+    it('allows an admin to list any account transactions', async () => {
+      const accountsRepo = {
+        findOne: jest.fn().mockResolvedValue({ id: 'acc-1', userId: 'owner-user-id' }),
+      };
+      const persistedTx = {
+        id: 2,
+        type: 'MINT',
+        amount: 100,
+        description: null,
+        createdAt: new Date('2024-01-02T00:00:00.000Z'),
+        account: undefined,
+        toAccount: { id: 'acc-1' },
+      } as unknown as Transaction;
+      const qb = mockQueryBuilder([persistedTx]);
+      const transactionsRepo = {
+        createQueryBuilder: jest.fn().mockReturnValue(qb),
+      } as unknown as Repository<Transaction>;
+      const cryptoService = {
+        decryptCardPrivateKey: jest.fn(),
+        publicKeyFromPrivateKeyHex: jest.fn(),
+      };
+      const itemsService = { findByIds: jest.fn() };
+      const dataSource = { manager: { transaction: jest.fn() } };
+      const service = createService({ accountsRepo, cryptoService, itemsService, dataSource, transactionsRepo });
+      const auth: ApiAuthContext = {
+        userId: 'admin-user-id',
+        privilege: ApiTokenPrivilege.ADMIN,
+        userType: UserType.USER,
+      };
+      const actual = await service.findTransactionsForAccount('acc-1', auth, 5);
+      expect(actual[0]?.fromAccountId).toBeNull();
+      expect(actual[0]?.toAccountId).toBe('acc-1');
+      expect(qb.limit).toHaveBeenCalledWith(5);
+    });
+
+    it('clamps limit to at least 1 and at most 100', async () => {
+      const accountsRepo = {
+        findOne: jest.fn().mockResolvedValue({ id: 'acc-1', userId: 'u1' }),
+      };
+      const qb = mockQueryBuilder([]);
+      const transactionsRepo = {
+        createQueryBuilder: jest.fn().mockReturnValue(qb),
+      } as unknown as Repository<Transaction>;
+      const cryptoService = {
+        decryptCardPrivateKey: jest.fn(),
+        publicKeyFromPrivateKeyHex: jest.fn(),
+      };
+      const itemsService = { findByIds: jest.fn() };
+      const dataSource = { manager: { transaction: jest.fn() } };
+      const service = createService({ accountsRepo, cryptoService, itemsService, dataSource, transactionsRepo });
+      const auth: ApiAuthContext = {
+        userId: 'u1',
+        privilege: ApiTokenPrivilege.USER,
+        userType: UserType.USER,
+      };
+      await service.findTransactionsForAccount('acc-1', auth, 0);
+      expect(qb.limit).toHaveBeenCalledWith(1);
+      await service.findTransactionsForAccount('acc-1', auth, 999);
+      expect(qb.limit).toHaveBeenCalledWith(100);
     });
   });
 });
