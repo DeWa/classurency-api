@@ -135,6 +135,59 @@ describe('UsersService', () => {
     });
   });
 
+  describe('createUserAsAdmin()', () => {
+    it('creates a user with default type user when type is omitted', async () => {
+      const usersRepo = {
+        findOne: jest.fn(),
+        create: jest.fn().mockImplementation((u: User) => u),
+        save: jest.fn().mockImplementation(async (u: User) => Object.assign(u, { id: 'new-user-id' })),
+      };
+      const cryptoService = {
+        hashPassword: jest.fn().mockResolvedValue('hash'),
+        generateRandomPassword: jest.fn().mockReturnValue('pw1234'),
+      };
+      const service = createService({ usersRepo, cryptoService });
+
+      const actual = await service.createUserAsAdmin({
+        name: 'N',
+        userName: 'n',
+      });
+
+      expect(usersRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({ name: 'N', userName: 'n', type: UserType.USER }),
+      );
+      expect(actual).toEqual({
+        id: 'new-user-id',
+        name: 'N',
+        userName: 'n',
+        type: UserType.USER,
+        password: 'pw1234',
+      });
+    });
+
+    it('creates a user with the requested type', async () => {
+      const usersRepo = {
+        findOne: jest.fn(),
+        create: jest.fn().mockImplementation((u: User) => u),
+        save: jest.fn().mockImplementation(async (u: User) => Object.assign(u, { id: 'prov-id' })),
+      };
+      const cryptoService = {
+        hashPassword: jest.fn().mockResolvedValue('hash'),
+        generateRandomPassword: jest.fn().mockReturnValue('pw1234'),
+      };
+      const service = createService({ usersRepo, cryptoService });
+
+      const actual = await service.createUserAsAdmin({
+        name: 'P',
+        userName: 'p',
+        type: UserType.PROVIDER,
+      });
+
+      expect(usersRepo.create).toHaveBeenCalledWith(expect.objectContaining({ type: UserType.PROVIDER }));
+      expect(actual.type).toBe(UserType.PROVIDER);
+    });
+  });
+
   describe('getUser()', () => {
     it('includes providerId when user type is provider and a provider exists', async () => {
       const providerUser: User = {
