@@ -307,7 +307,7 @@
     },
     "/api/v1/item-providers": {
       "post": {
-        "description": "Admin creates an item provider for a user account.",
+        "description": "Admin creates an item provider linked to a user account. The user referenced by userId must have type provider.",
         "operationId": "ItemProvidersController_createItemProvider_v1",
         "parameters": [],
         "requestBody": {
@@ -330,6 +330,9 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "User is not type provider, account mismatch, or invalid input"
           }
         },
         "security": [
@@ -452,6 +455,96 @@
           }
         ],
         "summary": "Create account",
+        "tags": [
+          "Accounts"
+        ]
+      },
+      "get": {
+        "description": "Returns a paginated list of accounts with each account owner (user) summary. Admins may filter by owner user id, owner user type, lock state, and a case-insensitive search on NFC UID or owner name fields.",
+        "operationId": "AccountsController_listAccounts_v1",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": false,
+            "in": "query",
+            "description": "Return only accounts owned by this user.",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "ownerType",
+            "required": false,
+            "in": "query",
+            "description": "Return only accounts whose owner has this user type.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "user",
+                "provider",
+                "admin"
+              ]
+            }
+          },
+          {
+            "name": "isLocked",
+            "required": false,
+            "in": "query",
+            "description": "Return only locked (true) or unlocked (false) accounts.",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "description": "Case-insensitive substring match on NFC card UID, owner display name, or owner login name (userName).",
+            "schema": {
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Page size (default 50, max 100).",
+            "schema": {
+              "default": 50,
+              "type": "number"
+            }
+          },
+          {
+            "name": "offset",
+            "required": false,
+            "in": "query",
+            "description": "Number of rows to skip (pagination).",
+            "schema": {
+              "default": 0,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accounts retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListAccountsResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List accounts",
         "tags": [
           "Accounts"
         ]
@@ -690,6 +783,291 @@
         ]
       }
     },
+    "/api/v1/admin/item-providers": {
+      "get": {
+        "description": "Returns a paginated list of item providers with owner and linked NFC metadata. Admins may filter by user id, owner type, and search.",
+        "operationId": "AdminController_listItemProviders_v1",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": false,
+            "in": "query",
+            "description": "Return only providers linked to this user id.",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "ownerType",
+            "required": false,
+            "in": "query",
+            "description": "Return only providers whose owner has this user type.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "user",
+                "provider",
+                "admin"
+              ]
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "description": "Case-insensitive substring match on provider name, owner display name, owner login name, or linked account NFC UID.",
+            "schema": {
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Page size (default 50, max 100).",
+            "schema": {
+              "default": 50,
+              "type": "number"
+            }
+          },
+          {
+            "name": "offset",
+            "required": false,
+            "in": "query",
+            "description": "Number of rows to skip (pagination).",
+            "schema": {
+              "default": 0,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Item providers retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListItemProvidersResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List item providers",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/api/v1/admin/item-providers/{id}": {
+      "patch": {
+        "description": "Updates display name and/or the linked user and account. When relinking, the user must have type provider and the account must belong to that user.",
+        "operationId": "AdminController_updateItemProvider_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Item provider ID",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateItemProviderDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Item provider updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemProviderResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or relink constraints"
+          },
+          "404": {
+            "description": "Item provider not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update item provider",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/api/v1/admin/accounts": {
+      "get": {
+        "description": "Returns a paginated list of accounts with each account owner (user) summary. Same behavior as GET /accounts.",
+        "operationId": "AdminController_listAccounts_v1",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": false,
+            "in": "query",
+            "description": "Return only accounts owned by this user.",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "ownerType",
+            "required": false,
+            "in": "query",
+            "description": "Return only accounts whose owner has this user type.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "user",
+                "provider",
+                "admin"
+              ]
+            }
+          },
+          {
+            "name": "isLocked",
+            "required": false,
+            "in": "query",
+            "description": "Return only locked (true) or unlocked (false) accounts.",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "description": "Case-insensitive substring match on NFC card UID, owner display name, or owner login name (userName).",
+            "schema": {
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Page size (default 50, max 100).",
+            "schema": {
+              "default": 50,
+              "type": "number"
+            }
+          },
+          {
+            "name": "offset",
+            "required": false,
+            "in": "query",
+            "description": "Number of rows to skip (pagination).",
+            "schema": {
+              "default": 0,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accounts retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListAccountsResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List accounts",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/api/v1/admin/accounts/{accountId}": {
+      "patch": {
+        "description": "Updates admin-managed fields such as lock state.",
+        "operationId": "AdminController_updateAccount_v1",
+        "parameters": [
+          {
+            "name": "accountId",
+            "required": true,
+            "in": "path",
+            "description": "Account ID",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAccountAdminDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Account updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminAccountPatchResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "No fields to update"
+          },
+          "404": {
+            "description": "Account not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update account (admin)",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
     "/api/v1/auth/login": {
       "post": {
         "description": "Login with the given username and password",
@@ -758,6 +1136,15 @@
             "description": "User username (letters, digits, - _ + only; no spaces)",
             "maxLength": 128,
             "pattern": "^[-a-zA-Z0-9_+]+$"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "user",
+              "provider",
+              "admin"
+            ],
+            "description": "User role. Defaults to user when omitted."
           }
         },
         "required": [
@@ -782,7 +1169,12 @@
           },
           "type": {
             "type": "string",
-            "description": "User type"
+            "description": "User type",
+            "enum": [
+              "user",
+              "provider",
+              "admin"
+            ]
           }
         },
         "required": [
@@ -1029,7 +1421,7 @@
           "userId": {
             "type": "string",
             "example": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-            "description": "The user that owns this provider."
+            "description": "The user that owns this provider. Must have user type provider."
           },
           "accountId": {
             "type": "string",
@@ -1303,6 +1695,118 @@
           "encryptedPrivateKeyForCard"
         ]
       },
+      "AccountListOwnerDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "userName": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "user",
+              "provider",
+              "admin"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "userName",
+          "type",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "ListAccountItemDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "nfcCardUid": {
+            "type": "object",
+            "nullable": true,
+            "description": "NFC card UID when assigned."
+          },
+          "publicKeyHex": {
+            "type": "string"
+          },
+          "balance": {
+            "type": "number",
+            "description": "Account balance."
+          },
+          "isLocked": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "owner": {
+            "description": "The user that owns this account.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AccountListOwnerDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "userId",
+          "publicKeyHex",
+          "balance",
+          "isLocked",
+          "createdAt",
+          "updatedAt",
+          "owner"
+        ]
+      },
+      "ListAccountsResponseDto": {
+        "type": "object",
+        "properties": {
+          "accounts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ListAccountItemDto"
+            }
+          },
+          "total": {
+            "type": "number",
+            "description": "Total rows matching the filters (ignoring limit/offset)."
+          }
+        },
+        "required": [
+          "accounts",
+          "total"
+        ]
+      },
       "CreateProviderItemDto": {
         "type": "object",
         "properties": {
@@ -1429,6 +1933,131 @@
         },
         "required": [
           "balance"
+        ]
+      },
+      "ListItemProviderItemDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "accountId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "linkedAccountNfcCardUid": {
+            "type": "object",
+            "nullable": true,
+            "description": "NFC card UID of the linked account when assigned."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "owner": {
+            "description": "The user that owns this item provider.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AccountListOwnerDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "userId",
+          "accountId",
+          "createdAt",
+          "updatedAt",
+          "owner"
+        ]
+      },
+      "ListItemProvidersResponseDto": {
+        "type": "object",
+        "properties": {
+          "itemProviders": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ListItemProviderItemDto"
+            }
+          },
+          "total": {
+            "type": "number",
+            "description": "Total rows matching the filters (ignoring limit/offset)."
+          }
+        },
+        "required": [
+          "itemProviders",
+          "total"
+        ]
+      },
+      "UpdateItemProviderDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Display name",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "userId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Owning user id (must be sent together with accountId)."
+          },
+          "accountId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Linked account id (must be sent together with userId)."
+          }
+        }
+      },
+      "UpdateAccountAdminDto": {
+        "type": "object",
+        "properties": {
+          "isLocked": {
+            "type": "boolean",
+            "description": "When true, the account cannot be used for login or transfers until unlocked."
+          }
+        }
+      },
+      "AdminAccountPatchResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "isLocked": {
+            "type": "boolean"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "userId",
+          "isLocked",
+          "updatedAt"
         ]
       },
       "LoginDto": {

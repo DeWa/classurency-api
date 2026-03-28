@@ -1,4 +1,4 @@
-import { IsEnum, IsNotEmpty, IsString, Matches, MaxLength } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsOptional, IsString, Matches, MaxLength } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { UserType } from '../user.entity';
 
@@ -25,6 +25,15 @@ export class CreateUserDto {
     message: 'username must not contain spaces and may only use letters, numbers, and - _ +',
   })
   userName!: string;
+
+  @ApiProperty({
+    enum: UserType,
+    required: false,
+    description: 'User role. Defaults to user when omitted.',
+  })
+  @IsOptional()
+  @IsEnum(UserType)
+  type?: UserType;
 }
 
 export class CreateUserResponseDto {
@@ -43,7 +52,7 @@ export class CreateUserResponseDto {
   @IsNotEmpty()
   password!: string;
 
-  @ApiProperty({ description: 'User type' })
+  @ApiProperty({ description: 'User type', enum: UserType })
   @IsEnum(UserType)
   @IsNotEmpty()
   type!: UserType;

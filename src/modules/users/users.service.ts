@@ -31,17 +31,18 @@ export class UsersService {
   /**
    * Create a new user
    * @param name - The name of the user
+   * @param userName - The username of the user
    * @param password - The password of the user
-   * @param type - The type of the user
+   * @param type - The type of the user (defaults to regular user)
    * @returns The created user
    */
-  async createUser(name: string, userName: string, password: string) {
+  async createUser(name: string, userName: string, password: string, type: UserType = UserType.USER) {
     const passwordHash = await this.cryptoService.hashPassword(password);
     const user = this.usersRepo.create({
       name,
       userName,
       passwordHash,
-      type: UserType.USER,
+      type,
     });
     try {
       await this.usersRepo.save(user);
@@ -66,8 +67,9 @@ export class UsersService {
    * @returns The created user
    */
   async createUserAsAdmin(dto: CreateUserDto) {
-    const password = this.cryptoService.generateRandomPassword();
-    const user = await this.createUser(dto.name, dto.userName, password);
+    const password = this.cryptoService.generateRandomPassword(6);
+    const userType = dto.type ?? UserType.USER;
+    const user = await this.createUser(dto.name, dto.userName, password, userType);
     return {
       id: user.id,
       name: user.name,
@@ -82,8 +84,13 @@ export class UsersService {
    * @param dto - The update user request dto
    * @returns The updated user
    */
-  async updateUser(reqUserId: string, userId: string, dto: UpdateUserRequestDto): Promise<UpdateUserResponseDto> {
-    if (reqUserId !== userId) {
+  async updateUser(
+    reqUserId: string,
+    userId: string,
+    dto: UpdateUserRequestDto,
+    options?: { isAdmin?: boolean },
+  ): Promise<UpdateUserResponseDto> {
+    if (reqUserId !== userId && !options?.isAdmin) {
       throw new ForbiddenException('You are not allowed to update this user');
     }
     const user = await this.usersRepo.findOne({ where: { id: userId } });
@@ -99,7 +106,7 @@ export class UsersService {
     }
 
     if (dto.type !== undefined) {
-      if (user.type !== UserType.ADMIN) {
+      if (!options?.isAdmin) {
         throw new ForbiddenException('You are not allowed to change user type');
       }
       user.type = dto.type;

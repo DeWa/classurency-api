@@ -23,6 +23,7 @@ import { Account } from '@modules/accounts/account.entity';
 import { User, UserType } from '@modules/users/user.entity';
 
 type SeedUserConfig = {
+  readonly id: string;
   readonly name: string;
   readonly userName: string;
   readonly password: string;
@@ -30,6 +31,7 @@ type SeedUserConfig = {
 };
 
 type SeedAccountConfig = {
+  readonly id: string;
   readonly nfcCardUid: string;
   readonly pin: string;
   readonly initialBalance: number;
@@ -68,6 +70,7 @@ async function upsertUser(params: {
   const existing: User | null = await params.userRepo.findOne({ where: { userName: params.config.userName } });
   const passwordHash: string = await params.cryptoService.hashPassword(params.config.password);
   const user: User = existing ?? params.userRepo.create();
+  user.id = params.config.id;
   user.name = params.config.name;
   user.userName = params.config.userName;
   user.passwordHash = passwordHash;
@@ -90,6 +93,7 @@ async function upsertAccount(params: {
 
   const existing: Account | null = await params.accountRepo.findOne({ where: { userId: params.user.id } });
   const account: Account = existing ?? params.accountRepo.create();
+  account.id = params.config.id;
   account.userId = params.user.id;
   account.nfcCardUid = params.config.nfcCardUid;
   account.pinHash = pinHash;
@@ -151,23 +155,27 @@ async function main(): Promise<void> {
 
   const config: SeedConfig = {
     admin: {
+      id: '92046d35-31da-4929-b4d1-2a19e9194c27',
       name: 'Dev Admin',
       userName: (values['admin-user-name'] as string | undefined) ?? 'dev-admin',
       password: (values['admin-password'] as string | undefined) ?? 'dev-admin-password',
       userType: UserType.ADMIN,
     },
     adminAccount: {
+      id: '3ac53bf3-4d10-45c9-8bd2-59598e753093',
       nfcCardUid: 'dev-card-admin',
       pin: '1234',
       initialBalance: 100,
     },
     user: {
+      id: '7a247c67-7dfa-48af-a30b-5cee79d6d3bc',
       name: 'Dev User',
       userName: (values['user-user-name'] as string | undefined) ?? 'dev-user',
       password: (values['user-password'] as string | undefined) ?? 'dev-user-password',
       userType: UserType.USER,
     },
     userAccount: {
+      id: '3c02e180-63ef-4dcd-944b-b51e8a7d74e5',
       nfcCardUid: 'dev-card-user',
       pin: '1234',
       initialBalance: 25,

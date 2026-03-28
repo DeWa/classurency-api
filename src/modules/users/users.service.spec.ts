@@ -121,17 +121,70 @@ describe('UsersService', () => {
 
       const usersRepo = {
         findOne: jest.fn().mockResolvedValue(existingUser),
-        save: jest.fn().mockImplementation(async (userToSave: User) => userToSave),
+        save: jest.fn().mockImplementation((userToSave: User) => Promise.resolve(userToSave)),
       };
       const cryptoService = { hashPassword: jest.fn() };
       const service = createService({ usersRepo, cryptoService });
 
       const dto: UpdateUserRequestDto = { type: UserType.USER } as UpdateUserRequestDto;
 
-      const response = await service.updateUser('admin-user-id', 'admin-user-id', dto);
+      const response = await service.updateUser('admin-user-id', 'admin-user-id', dto, { isAdmin: true });
 
       expect(usersRepo.save).toHaveBeenCalled();
       expect(response.type).toBe(UserType.USER);
+    });
+  });
+
+  describe('createUserAsAdmin()', () => {
+    it('creates a user with default type user when type is omitted', async () => {
+      const usersRepo = {
+        findOne: jest.fn(),
+        create: jest.fn().mockImplementation((u: User) => u),
+        save: jest.fn().mockImplementation(async (u: User) => Object.assign(u, { id: 'new-user-id' })),
+      };
+      const cryptoService = {
+        hashPassword: jest.fn().mockResolvedValue('hash'),
+        generateRandomPassword: jest.fn().mockReturnValue('pw1234'),
+      };
+      const service = createService({ usersRepo, cryptoService });
+
+      const actual = await service.createUserAsAdmin({
+        name: 'N',
+        userName: 'n',
+      });
+
+      expect(usersRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({ name: 'N', userName: 'n', type: UserType.USER }),
+      );
+      expect(actual).toEqual({
+        id: 'new-user-id',
+        name: 'N',
+        userName: 'n',
+        type: UserType.USER,
+        password: 'pw1234',
+      });
+    });
+
+    it('creates a user with the requested type', async () => {
+      const usersRepo = {
+        findOne: jest.fn(),
+        create: jest.fn().mockImplementation((u: User) => u),
+        save: jest.fn().mockImplementation(async (u: User) => Object.assign(u, { id: 'prov-id' })),
+      };
+      const cryptoService = {
+        hashPassword: jest.fn().mockResolvedValue('hash'),
+        generateRandomPassword: jest.fn().mockReturnValue('pw1234'),
+      };
+      const service = createService({ usersRepo, cryptoService });
+
+      const actual = await service.createUserAsAdmin({
+        name: 'P',
+        userName: 'p',
+        type: UserType.PROVIDER,
+      });
+
+      expect(usersRepo.create).toHaveBeenCalledWith(expect.objectContaining({ type: UserType.PROVIDER }));
+      expect(actual.type).toBe(UserType.PROVIDER);
     });
   });
 

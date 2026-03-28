@@ -20,6 +20,7 @@ import { ApiTokenGuard, type ApiAuthContext } from '@common/guards/api-token.gua
 import { ResponseDtoOmitter } from '@common/decorators/response-dto-omitter';
 import { AccountsService } from './accounts.service';
 import { CreateAccountDto, CreateAccountResponseDto } from './dto/create-account.dto';
+import { ListAccountsQueryDto, ListAccountsResponseDto } from './dto/list-accounts.dto';
 import { ApiTokenPrivilege } from '@modules/api-tokens/api-token.entity';
 import { DEFAULT_ACCOUNT_TRANSACTIONS_LIMIT, TransactionsService } from '@modules/transactions/transactions.service';
 import { TransactionResponseDto } from '@modules/transactions/dto/transaction-response.dto';
@@ -43,6 +44,19 @@ export class AccountsController {
   @ApiResponse({ status: 201, description: 'Account created', type: CreateAccountResponseDto })
   createAccount(@Body() dto: CreateAccountDto): Promise<CreateAccountResponseDto> {
     return this.accountsService.createAccount(dto);
+  }
+
+  @Get()
+  @UseGuards(ApiTokenGuard)
+  @RequirePrivilege(ApiTokenPrivilege.ADMIN)
+  @ApiOperation({
+    summary: 'List accounts',
+    description:
+      'Returns a paginated list of accounts with each account owner (user) summary. Admins may filter by owner user id, owner user type, lock state, and a case-insensitive search on NFC UID or owner name fields.',
+  })
+  @ApiResponse({ status: 200, description: 'Accounts retrieved successfully', type: ListAccountsResponseDto })
+  listAccounts(@Query() query: ListAccountsQueryDto): Promise<ListAccountsResponseDto> {
+    return this.accountsService.listAccountsAsAdmin(query);
   }
 
   @UseInterceptors(new ResponseDtoOmitter(TransactionResponseDto))

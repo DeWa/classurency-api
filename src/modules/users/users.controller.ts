@@ -75,7 +75,9 @@ export class UsersController {
     if (!reqUserId) {
       throw new UnauthorizedException('Missing auth context');
     }
-    return await this.usersService.updateUser(reqUserId, userId, dto);
+    const isAdmin = req.apiAuth?.privilege === ApiTokenPrivilege.ADMIN;
+
+    return await this.usersService.updateUser(reqUserId, userId, dto, { isAdmin });
   }
 
   @UseInterceptors(new ResponseDtoOmitter(GetUserResponseDto))

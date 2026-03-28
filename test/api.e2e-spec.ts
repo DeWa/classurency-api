@@ -187,6 +187,32 @@ describe('API (e2e)', () => {
   });
 
   describe('Item providers and items', () => {
+    it('rejects item provider creation when the linked user is not type provider', async () => {
+      const regularUserRes = await request(app.getHttpServer())
+        .post(`${API_PREFIX}/users`)
+        .set(bearer(admin.adminToken))
+        .send({ name: 'Not Provider', userName: 'e2e-not-provider-ip' })
+        .expect(201);
+      const regularUserId: string = (regularUserRes.body as { id: string }).id;
+      await request(app.getHttpServer())
+        .post(`${API_PREFIX}/accounts`)
+        .set(bearer(admin.adminToken))
+        .send({ userId: regularUserId })
+        .expect(201);
+      const regularAccount = await dataSource.getRepository(Account).findOne({ where: { userId: regularUserId } });
+      if (!regularAccount) {
+        throw new Error('E2E: regular user account not found');
+      }
+      const rejectRes = await request(app.getHttpServer())
+        .post(`${API_PREFIX}/item-providers`)
+        .set(bearer(admin.adminToken))
+        .send({ name: 'Invalid', userId: regularUserId, accountId: regularAccount.id })
+        .expect(400);
+      const message = (rejectRes.body as { message?: string | string[] }).message;
+      const text = Array.isArray(message) ? message.join(' ') : String(message ?? '');
+      expect(text).toMatch(/provider/i);
+    });
+
     it('allows admin to create an item provider with accountId', async () => {
       const provider = await seedProviderUser(app, 'e2e-provider-admin-create');
       const createProviderRes = await request(app.getHttpServer())
@@ -293,7 +319,7 @@ describe('API (e2e)', () => {
       const sellerCreate = await request(app.getHttpServer())
         .post(`${API_PREFIX}/users`)
         .set(bearer(admin.adminToken))
-        .send({ name: 'Seller', userName: 'e2e-seller' })
+        .send({ name: 'Seller', userName: 'e2e-seller', type: UserType.PROVIDER })
         .expect(201);
       const sellerId: string = (sellerCreate.body as { id: string }).id;
       await request(app.getHttpServer())
@@ -579,6 +605,23 @@ describe('API (e2e)', () => {
         .expect(401);
     });
 
+    it('lets admin set user type on create', async () => {
+      const createResponse = await request(app.getHttpServer())
+        .post(`${API_PREFIX}/users`)
+        .set(bearer(admin.adminToken))
+        .send({ name: 'Provider User', userName: 'e2e-typed-provider', type: UserType.PROVIDER })
+        .expect(201);
+      const body = createResponse.body as { type: string; password: string };
+      expect(body.type).toBe(UserType.PROVIDER);
+      expect(typeof body.password).toBe('string');
+      const defaultTypeResponse = await request(app.getHttpServer())
+        .post(`${API_PREFIX}/users`)
+        .set(bearer(admin.adminToken))
+        .send({ name: 'Default Type', userName: 'e2e-default-type' })
+        .expect(201);
+      expect((defaultTypeResponse.body as { type: string }).type).toBe(UserType.USER);
+    });
+
     it('lets admin list users with filters and forbids non-admins from listing', async () => {
       await request(app.getHttpServer())
         .post(`${API_PREFIX}/users`)
@@ -612,6 +655,110 @@ describe('API (e2e)', () => {
         .expect(201);
       const userToken = await loginViaApi(app, 'e2e-nolist', (userRes.body as { password: string }).password);
       await request(app.getHttpServer()).get(`${API_PREFIX}/users`).set(bearer(userToken)).expect(401);
+    });
+
+    it('lets admin list accounts with owner metadata and forbids non-admins from listing', async () => {
+      const listRes = await request(app.getHttpServer())
+        .get(`${API_PREFIX}/accounts`)
+        .set(bearer(admin.adminToken))
+        .expect(200);
+      const body = listRes.body as {
+        accounts: Array<{ userId: string; owner: { userName: string; type: string }; publicKeyHex: string }>;
+        total: number;
+      };
+      expect(body.total).toBeGreaterThanOrEqual(1);
+      const adminAccount = body.accounts.find((a) => a.userId === admin.adminUserId);
+      expect(adminAccount).toBeDefined();
+      expect(adminAccount?.owner.userName).toBe(admin.adminUserName);
+      expect(adminAccount?.owner.type).toBe('admin');
+      expect(adminAccount?.publicKeyHex.length).toBeGreaterThan(0);
+      const byUser = await request(app.getHttpServer())
+        .get(`${API_PREFIX}/accounts?userId=${admin.adminUserId}`)
+        .set(bearer(admin.adminToken))
+        .expect(200);
+      const byUserBody = byUser.body as { accounts: Array<{ userId: string }>; total: number };
+      expect(byUserBody.accounts.every((a) => a.userId === admin.adminUserId)).toBe(true);
+      const userRes = await request(app.getHttpServer())
+        .post(`${API_PREFIX}/users`)
+        .set(bearer(admin.adminToken))
+        .send({ name: 'NoAccList', userName: 'e2e-noacclist' })
+        .expect(201);
+      const userToken = await loginViaApi(app, 'e2e-noacclist', (userRes.body as { password: string }).password);
+      await request(app.getHttpServer()).get(`${API_PREFIX}/accounts`).set(bearer(userToken)).expect(401);
+    });
+
+    it('lets admin list and patch accounts under /admin/accounts', async () => {
+      const listRes = await request(app.getHttpServer())
+        .get(`${API_PREFIX}/admin/accounts`)
+        .set(bearer(admin.adminToken))
+        .expect(200);
+      const listBody = listRes.body as { accounts: Array<{ id: string; isLocked: boolean }>; total: number };
+      expect(listBody.total).toBeGreaterThanOrEqual(1);
+      const target = listBody.accounts.find((a) => a.id === admin.adminAccountId);
+      expect(target).toBeDefined();
+      expect(target?.isLocked).toBe(false);
+      const patchRes = await request(app.getHttpServer())
+        .patch(`${API_PREFIX}/admin/accounts/${admin.adminAccountId}`)
+        .set(bearer(admin.adminToken))
+        .send({ isLocked: true })
+        .expect(200);
+      const patched = patchRes.body as { id: string; isLocked: boolean };
+      expect(patched.isLocked).toBe(true);
+      await request(app.getHttpServer())
+        .patch(`${API_PREFIX}/admin/accounts/${admin.adminAccountId}`)
+        .set(bearer(admin.adminToken))
+        .send({ isLocked: false })
+        .expect(200);
+      const userRes = await request(app.getHttpServer())
+        .post(`${API_PREFIX}/users`)
+        .set(bearer(admin.adminToken))
+        .send({ name: 'NoAdminAcc', userName: 'e2e-noadminacc' })
+        .expect(201);
+      const userToken = await loginViaApi(app, 'e2e-noadminacc', (userRes.body as { password: string }).password);
+      await request(app.getHttpServer()).get(`${API_PREFIX}/admin/accounts`).set(bearer(userToken)).expect(401);
+    });
+
+    it('lets admin list and patch item providers under /admin/item-providers', async () => {
+      const provider = await seedProviderUser(app, 'e2e-admin-ip-list');
+      const createRes = await request(app.getHttpServer())
+        .post(`${API_PREFIX}/item-providers`)
+        .set(bearer(admin.adminToken))
+        .send({
+          name: 'Admin List Shop',
+          userId: provider.providerUserId,
+          accountId: provider.providerAccountId,
+        })
+        .expect(201);
+      const providerId = (createRes.body as { id: string }).id;
+      const listRes = await request(app.getHttpServer())
+        .get(`${API_PREFIX}/admin/item-providers`)
+        .set(bearer(admin.adminToken))
+        .expect(200);
+      const listBody = listRes.body as {
+        itemProviders: Array<{ id: string; name: string; userId: string }>;
+        total: number;
+      };
+      expect(listBody.total).toBeGreaterThanOrEqual(1);
+      expect(listBody.itemProviders.some((p) => p.id === providerId)).toBe(true);
+      const byUser = await request(app.getHttpServer())
+        .get(`${API_PREFIX}/admin/item-providers?userId=${provider.providerUserId}`)
+        .set(bearer(admin.adminToken))
+        .expect(200);
+      const byUserBody = byUser.body as { itemProviders: Array<{ id: string; userId: string }>; total: number };
+      expect(byUserBody.itemProviders.every((p) => p.userId === provider.providerUserId)).toBe(true);
+      const patchRes = await request(app.getHttpServer())
+        .patch(`${API_PREFIX}/admin/item-providers/${providerId}`)
+        .set(bearer(admin.adminToken))
+        .send({ name: 'Renamed Shop' })
+        .expect(200);
+      expect((patchRes.body as { name: string }).name).toBe('Renamed Shop');
+      const userRes = await request(app.getHttpServer())
+        .post(`${API_PREFIX}/users`)
+        .set(bearer(admin.adminToken))
+        .send({ name: 'NoAdminIp', userName: 'e2e-noadminip' })
+        .expect(201);
+      const userToken = await loginViaApi(app, 'e2e-noadminip', (userRes.body as { password: string }).password);
+      await request(app.getHttpServer()).get(`${API_PREFIX}/admin/item-providers`).set(bearer(userToken)).expect(401);
     });
 
     it('forbids users from reading other users by id (admin-only route)', async () => {

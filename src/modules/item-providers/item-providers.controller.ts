@@ -18,8 +18,13 @@ export class ItemProvidersController {
   @Post()
   @UseGuards(ApiTokenGuard)
   @RequirePrivilege(ApiTokenPrivilege.ADMIN)
-  @ApiOperation({ summary: 'Create item provider', description: 'Admin creates an item provider for a user account.' })
+  @ApiOperation({
+    summary: 'Create item provider',
+    description:
+      'Admin creates an item provider linked to a user account. The user referenced by userId must have type provider.',
+  })
   @ApiResponse({ status: 201, description: 'Item provider created successfully', type: ItemProviderResponseDto })
+  @ApiResponse({ status: 400, description: 'User is not type provider, account mismatch, or invalid input' })
   async createItemProvider(@Body() dto: CreateItemProviderDto): Promise<ItemProviderResponseDto> {
     return this.itemProvidersService.createAsAdmin(dto.userId, dto.accountId, dto.name);
   }
