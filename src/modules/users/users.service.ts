@@ -12,6 +12,12 @@ import {
   isUserNameAlreadyExistsError,
   UserNameAlreadyExistsException,
 } from './errors/user-name-already-exists.exception';
+import {
+  DEFAULT_LIST_USERS_LIMIT,
+  ListUsersQueryDto,
+  ListUsersResponseDto,
+  MAX_LIST_USERS_LIMIT,
+} from './dto/list-users.dto';
 
 @Injectable()
 export class UsersService {
@@ -123,6 +129,39 @@ export class UsersService {
     return Object.assign(withProviderId, {
       accounts: (user.accounts ?? []).map((account) => this.mapAccountToSummary(account)),
     });
+  }
+
+  /**
+   * Lists users for an admin with optional type filter, name search, and pagination.
+   * @param query - Filters and pagination.
+   * @returns Matching users and total count.
+   */
+  async listUsersAsAdmin(query: ListUsersQueryDto): Promise<ListUsersResponseDto> {
+    const limit = Math.min(Math.max(query.limit ?? DEFAULT_LIST_USERS_LIMIT, 1), MAX_LIST_USERS_LIMIT);
+    const offset = query.offset ?? 0;
+    const qb = this.usersRepo
+      .createQueryBuilder('user')
+      .select(['user.id', 'user.name', 'user.userName', 'user.type', 'user.createdAt', 'user.updatedAt']);
+    if (query.type !== undefined) {
+      qb.andWhere('user.type = :type', { type: query.type });
+    }
+    if (query.search !== undefined && query.search.length > 0) {
+      const term = `%${query.search}%`;
+      qb.andWhere('(user.name ILIKE :term OR user.userName ILIKE :term)', { term });
+    }
+    qb.orderBy('user.createdAt', 'DESC').skip(offset).take(limit);
+    const [rows, total] = await qb.getManyAndCount();
+    return {
+      users: rows.map((u) => ({
+        id: u.id,
+        name: u.name,
+        userName: u.userName,
+        type: u.type,
+        createdAt: u.createdAt,
+        updatedAt: u.updatedAt,
+      })),
+      total,
+    };
   }
 
   private mapAccountToSummary(account: Account): UserAccountSummaryDto {

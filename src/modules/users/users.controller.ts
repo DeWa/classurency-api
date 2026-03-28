@@ -22,6 +22,7 @@ import { UpdateUserRequestDto, UpdateUserResponseDto } from './dto/update-user.d
 import { ApiAuthContext } from '@common/guards/api-token.guard';
 import { ApiTokenPrivilege } from '@modules/api-tokens/api-token.entity';
 import { GetUserRequestDto, GetUserResponseDto } from './dto/get-user.dto';
+import { ListUsersQueryDto, ListUsersResponseDto } from './dto/list-users.dto';
 import { ResponseDtoOmitter } from '@common/decorators/response-dto-omitter';
 import type { Request } from 'express';
 
@@ -41,6 +42,19 @@ export class UsersController {
   @ApiResponse({ status: 201, description: 'User created successfully', type: CreateUserResponseDto })
   async createUser(@Body() dto: CreateUserDto): Promise<CreateUserResponseDto> {
     return await this.usersService.createUserAsAdmin(dto);
+  }
+
+  @Get()
+  @UseGuards(ApiTokenGuard)
+  @RequirePrivilege(ApiTokenPrivilege.ADMIN)
+  @ApiOperation({
+    summary: 'List users',
+    description:
+      'Returns a paginated list of users. Admins may filter by type and by a case-insensitive search on name or userName.',
+  })
+  @ApiResponse({ status: 200, description: 'Users retrieved successfully', type: ListUsersResponseDto })
+  async listUsers(@Query() query: ListUsersQueryDto): Promise<ListUsersResponseDto> {
+    return await this.usersService.listUsersAsAdmin(query);
   }
 
   @Patch(':id')

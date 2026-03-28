@@ -579,6 +579,41 @@ describe('API (e2e)', () => {
         .expect(401);
     });
 
+    it('lets admin list users with filters and forbids non-admins from listing', async () => {
+      await request(app.getHttpServer())
+        .post(`${API_PREFIX}/users`)
+        .set(bearer(admin.adminToken))
+        .send({ name: 'Listed', userName: 'e2e-listed' })
+        .expect(201);
+      const listRes = await request(app.getHttpServer())
+        .get(`${API_PREFIX}/users`)
+        .set(bearer(admin.adminToken))
+        .expect(200);
+      const body = listRes.body as { users: Array<{ userName: string; type: string }>; total: number };
+      expect(body.total).toBeGreaterThanOrEqual(2);
+      expect(body.users.some((u) => u.userName === 'e2e-admin')).toBe(true);
+      expect(body.users.some((u) => u.userName === 'e2e-listed')).toBe(true);
+      const byType = await request(app.getHttpServer())
+        .get(`${API_PREFIX}/users?type=user`)
+        .set(bearer(admin.adminToken))
+        .expect(200);
+      const byTypeBody = byType.body as { users: Array<{ type: string }>; total: number };
+      expect(byTypeBody.users.every((u) => u.type === 'user')).toBe(true);
+      const search = await request(app.getHttpServer())
+        .get(`${API_PREFIX}/users?search=e2e-list`)
+        .set(bearer(admin.adminToken))
+        .expect(200);
+      const searchBody = search.body as { users: Array<{ userName: string }> };
+      expect(searchBody.users.some((u) => u.userName === 'e2e-listed')).toBe(true);
+      const userRes = await request(app.getHttpServer())
+        .post(`${API_PREFIX}/users`)
+        .set(bearer(admin.adminToken))
+        .send({ name: 'NoList', userName: 'e2e-nolist' })
+        .expect(201);
+      const userToken = await loginViaApi(app, 'e2e-nolist', (userRes.body as { password: string }).password);
+      await request(app.getHttpServer()).get(`${API_PREFIX}/users`).set(bearer(userToken)).expect(401);
+    });
+
     it('forbids users from reading other users by id (admin-only route)', async () => {
       const userRes = await request(app.getHttpServer())
         .post(`${API_PREFIX}/users`)
