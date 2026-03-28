@@ -1,6 +1,7 @@
 import { INestApplication, ValidationPipe, VersioningType } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { DataSource } from 'typeorm';
+import { Logger } from 'nestjs-pino';
 import { AppModule } from '../src/app.module';
 
 /**
@@ -11,7 +12,8 @@ export async function createConfiguredE2eApp(): Promise<INestApplication> {
   const moduleFixture: TestingModule = await Test.createTestingModule({
     imports: [AppModule],
   }).compile();
-  const app: INestApplication = moduleFixture.createNestApplication();
+  const app: INestApplication = moduleFixture.createNestApplication({ bufferLogs: true });
+  app.useLogger(app.get(Logger));
   app.setGlobalPrefix('api');
   app.enableVersioning({
     type: VersioningType.URI,
