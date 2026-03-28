@@ -9,7 +9,7 @@ export class CreateItemProviderDto {
 
   @ApiProperty({
     example: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
-    description: 'The user that owns this provider.',
+    description: 'The user that owns this provider. Must have user type provider.',
   })
   @IsUUID()
   userId!: string;
