@@ -18,7 +18,7 @@ export class TransactionResponseDto {
   @IsNumber()
   amount!: number;
 
-  @ApiPropertyOptional({ description: 'Description', nullable: true })
+  @ApiPropertyOptional({ description: 'Description', nullable: true, required: false })
   @IsOptional()
   @IsString()
   description!: string | null;

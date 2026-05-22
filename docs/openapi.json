@@ -1268,12 +1268,7 @@
             ],
             "description": "User type."
           }
-        },
-        "required": [
-          "name",
-          "password",
-          "type"
-        ]
+        }
       },
       "UpdateUserResponseDto": {
         "type": "object",
@@ -1332,7 +1327,6 @@
         },
         "required": [
           "id",
-          "nfcCardUid",
           "publicKeyHex",
           "balance",
           "isLocked",

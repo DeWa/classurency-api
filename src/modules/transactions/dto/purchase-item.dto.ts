@@ -44,6 +44,7 @@ export class PurchaseItemDto {
     example: 'Cafeteria lunch',
     maxLength: 500,
     description: 'Optional purchase description.',
+    required: false,
   })
   @IsOptional()
   @IsString()

@@ -14,12 +14,20 @@ export const MAX_LIST_ITEM_PROVIDERS_LIMIT = 100;
  * Query parameters for GET /admin/item-providers.
  */
 export class ListItemProvidersQueryDto {
-  @ApiPropertyOptional({ format: 'uuid', description: 'Return only providers linked to this user id.' })
+  @ApiPropertyOptional({
+    format: 'uuid',
+    description: 'Return only providers linked to this user id.',
+    required: false,
+  })
   @IsOptional()
   @IsUUID()
   userId?: string;
 
-  @ApiPropertyOptional({ enum: UserType, description: 'Return only providers whose owner has this user type.' })
+  @ApiPropertyOptional({
+    enum: UserType,
+    description: 'Return only providers whose owner has this user type.',
+    required: false,
+  })
   @IsOptional()
   @IsEnum(UserType)
   ownerType?: UserType;
@@ -28,6 +36,7 @@ export class ListItemProvidersQueryDto {
     description:
       'Case-insensitive substring match on provider name, owner display name, owner login name, or linked account NFC UID.',
     maxLength: 128,
+    required: false,
   })
   @Transform(({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() || undefined : value))
   @IsOptional()
@@ -39,6 +48,7 @@ export class ListItemProvidersQueryDto {
     type: Number,
     default: DEFAULT_LIST_ITEM_PROVIDERS_LIMIT,
     description: `Page size (default ${DEFAULT_LIST_ITEM_PROVIDERS_LIMIT}, max ${MAX_LIST_ITEM_PROVIDERS_LIMIT}).`,
+    required: false,
   })
   @Type(() => Number)
   @IsOptional()
@@ -47,7 +57,12 @@ export class ListItemProvidersQueryDto {
   @Max(MAX_LIST_ITEM_PROVIDERS_LIMIT)
   limit?: number;
 
-  @ApiPropertyOptional({ type: Number, default: 0, description: 'Number of rows to skip (pagination).' })
+  @ApiPropertyOptional({
+    type: Number,
+    default: 0,
+    description: 'Number of rows to skip (pagination).',
+    required: false,
+  })
   @Type(() => Number)
   @IsOptional()
   @IsInt()

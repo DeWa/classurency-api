@@ -12,6 +12,7 @@ export class UserAccountSummaryDto {
   @ApiProperty({
     nullable: true,
     description: 'NFC card UID when the account is bound to a card.',
+    required: false,
   })
   @IsOptional()
   @IsString()

@@ -41,6 +41,7 @@ export class MintDto {
     example: 'Initial top-up',
     maxLength: 500,
     description: 'Optional mint description.',
+    required: false,
   })
   @IsOptional()
   @IsString()

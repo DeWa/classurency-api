@@ -5,7 +5,10 @@ import { IsBoolean, IsOptional } from 'class-validator';
  * Body for PATCH /admin/accounts/:accountId. At least one field must be sent.
  */
 export class UpdateAccountAdminDto {
-  @ApiPropertyOptional({ description: 'When true, the account cannot be used for login or transfers until unlocked.' })
+  @ApiPropertyOptional({
+    description: 'When true, the account cannot be used for login or transfers until unlocked.',
+    required: false,
+  })
   @IsOptional()
   @IsBoolean()
   isLocked?: boolean;

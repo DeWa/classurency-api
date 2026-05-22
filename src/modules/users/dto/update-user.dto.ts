@@ -7,6 +7,7 @@ export class UpdateUserRequestDto {
     example: 'Ada Lovelace',
     maxLength: 128,
     description: 'User display name.',
+    required: false,
   })
   @IsString()
   @IsOptional()
@@ -18,6 +19,7 @@ export class UpdateUserRequestDto {
     minLength: 6,
     maxLength: 128,
     description: 'Account password for API login (stored with Argon2id; distinct from the generated card PIN).',
+    required: false,
   })
   @IsString()
   @IsOptional()
@@ -28,6 +30,7 @@ export class UpdateUserRequestDto {
     example: 'admin',
     enum: UserType,
     description: 'User type.',
+    required: false,
   })
   @IsEnum(UserType)
   @IsOptional()
