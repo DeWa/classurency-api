@@ -1,15 +1,11 @@
 import type { Params } from 'nestjs-pino';
-
-const NODE_ENV: string = process.env.NODE_ENV ?? 'development';
-const isProduction: boolean = NODE_ENV === 'production';
-const isTest: boolean = NODE_ENV === 'test';
-const DEFAULT_LOG_LEVEL: string = isProduction ? 'info' : 'debug';
+import type { AppConfigService } from './app-config.service';
 
 /**
  * Options for nestjs-pino: HTTP request/response logging and application logger binding.
  */
-export function createPinoLoggerParams(): Params {
-  const level: string = process.env.LOG_LEVEL ?? (isTest ? 'silent' : DEFAULT_LOG_LEVEL);
+export function createPinoLoggerParams(appConfig: AppConfigService): Params {
+  const { logLevel, isProduction, isTest } = appConfig;
   const redact: { paths: string[]; remove: boolean } = {
     paths: ['req.headers.authorization', 'req.headers.cookie'],
     remove: true,
@@ -17,8 +13,8 @@ export function createPinoLoggerParams(): Params {
   if (isTest) {
     return {
       pinoHttp: {
-        level,
-        autoLogging: level !== 'silent',
+        level: logLevel,
+        autoLogging: logLevel !== 'silent',
         transport: undefined,
         redact,
       },
@@ -26,7 +22,7 @@ export function createPinoLoggerParams(): Params {
   }
   return {
     pinoHttp: {
-      level,
+      level: logLevel,
       transport: isProduction
         ? undefined
         : {

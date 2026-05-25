@@ -16,6 +16,7 @@ import { parseArgs } from 'node:util';
 import ms from 'ms';
 import { AppDataSource } from '../ormconfig';
 import { CryptoService } from '@common/crypto/crypto.service';
+import { AppConfigService } from '../src/config/app-config.service';
 import { JwtPayload } from '@common/crypto/jwt-payload';
 import { mapUserToApiTokenPrivilege } from '@common/mappers';
 import { ApiToken, ApiTokenPrivilege, ApiTokenType } from '@modules/api-tokens/api-token.entity';
@@ -183,7 +184,7 @@ async function main(): Promise<void> {
   };
 
   await AppDataSource.initialize();
-  const cryptoService: CryptoService = new CryptoService();
+  const cryptoService: CryptoService = new CryptoService(new AppConfigService());
 
   const userRepo = AppDataSource.getRepository<User>(User);
   const accountRepo = AppDataSource.getRepository<Account>(Account);

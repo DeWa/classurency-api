@@ -1,3 +1,5 @@
+import { resetAppConfigCache } from '../src/config/app.config';
+
 /**
  * Loaded before each e2e test file so Nest and TypeORM use the same defaults as `test/global-setup.ts`.
  *
@@ -9,3 +11,4 @@ process.env.CLASSURENCY_MASTER_KEY = process.env.CLASSURENCY_MASTER_KEY ?? Buffe
 process.env.CLASSURENCY_CARD_EXPORT_KEY =
   process.env.CLASSURENCY_CARD_EXPORT_KEY ?? Buffer.alloc(32, 8).toString('base64');
 process.env.DB_NAME = process.env.E2E_DB_NAME ?? 'classurency_e2e';
+resetAppConfigCache();
