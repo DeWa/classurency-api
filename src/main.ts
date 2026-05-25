@@ -11,6 +11,7 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
   const appConfig = app.get(AppConfigService);
   app.useLogger(app.get(Logger));
+  app.get(Logger).log('info', 'Starting server');
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -45,6 +46,7 @@ async function bootstrap() {
     }
   }
 
-  await app.listen(process.env.PORT ?? 3000);
+  await app.listen(port);
+  app.get(Logger).log('info', `Server started on port ${port}`);
 }
 void bootstrap();
