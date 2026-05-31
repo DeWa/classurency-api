@@ -1,17 +1,29 @@
 import { DataSource } from 'typeorm';
 import 'reflect-metadata';
 import * as path from 'node:path';
-import 'dotenv/config';
+import dotenv from 'dotenv';
+import { getAppConfig } from './src/config/app.config';
 
-export const AppDataSource = new DataSource({
-  type: 'postgres',
-  host: process.env.DB_HOST ?? 'localhost',
-  port: Number(process.env.DB_PORT ?? 5432),
-  username: process.env.DB_USER ?? 'postgres',
-  password: process.env.DB_PASSWORD ?? 'postgres',
-  database: process.env.DB_NAME ?? 'classurency',
-  entities: [path.join(__dirname, 'src/**/*.entity.ts'), path.join(__dirname, 'dist/**/*.entity.js')],
-  migrations: [path.join(__dirname, 'src/migrations/*.ts'), path.join(__dirname, 'dist/migrations/*.js')],
-  synchronize: false,
-  logging: true,
-});
+const envFile = typeof process.env.NODE_ENV === 'undefined' ? '.env.development' : `.env.${process.env.NODE_ENV}`;
+dotenv.config({ path: envFile });
+
+/**
+ * TypeORM CLI and e2e bootstrap data source using validated application configuration.
+ */
+export function createAppDataSource(): DataSource {
+  const { database } = getAppConfig();
+  return new DataSource({
+    type: 'postgres',
+    host: database.host,
+    port: database.port,
+    username: database.username,
+    password: database.password,
+    database: database.database,
+    entities: [path.join(__dirname, 'src/**/*.entity.ts'), path.join(__dirname, 'dist/**/*.entity.js')],
+    migrations: [path.join(__dirname, 'src/migrations/*.ts'), path.join(__dirname, 'dist/migrations/*.js')],
+    synchronize: false,
+    logging: true,
+  });
+}
+
+export const AppDataSource = createAppDataSource();

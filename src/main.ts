@@ -5,10 +5,13 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
+import { AppConfigService } from './config/app-config.service';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  const appConfig = app.get(AppConfigService);
   app.useLogger(app.get(Logger));
+  app.get(Logger).log('info', 'Starting server');
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -24,29 +27,26 @@ async function bootstrap() {
     type: VersioningType.URI,
   });
 
-  const swaggerEnabled =
-    (process.env.SWAGGER_ENABLED ?? '') !== 'false' && (process.env.NODE_ENV ?? '') !== 'production';
-  if (swaggerEnabled) {
-    const swaggerPath = process.env.SWAGGER_PATH ?? 'docs';
-
+  const { swagger, port } = appConfig;
+  if (swagger.enabled) {
     const swaggerConfig = new DocumentBuilder()
-      .setTitle(process.env.SWAGGER_TITLE ?? 'Classurency API')
-      .setDescription(process.env.SWAGGER_DESCRIPTION ?? 'API documentation for the Classurency backend.')
-      .setVersion(process.env.SWAGGER_VERSION ?? '0.0.1')
+      .setTitle(swagger.title)
+      .setDescription(swagger.description)
+      .setVersion(swagger.version)
       .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'token' }, 'bearer')
       .build();
 
     const document = SwaggerModule.createDocument(app, swaggerConfig);
-    SwaggerModule.setup(swaggerPath, app, document);
+    SwaggerModule.setup(swagger.path, app, document);
 
-    const shouldWriteSpec = (process.env.SWAGGER_WRITE_ON_BOOT ?? 'true') !== 'false';
-    if (shouldWriteSpec) {
-      const outputPath = resolve(process.cwd(), process.env.SWAGGER_OUTPUT_PATH ?? 'docs/openapi.json');
+    if (swagger.writeOnBoot) {
+      const outputPath = resolve(process.cwd(), swagger.outputPath);
       await mkdir(dirname(outputPath), { recursive: true });
       await writeFile(outputPath, JSON.stringify(document, null, 2), 'utf8');
     }
   }
 
-  await app.listen(process.env.PORT ?? 3000);
+  await app.listen(port);
+  app.get(Logger).log('info', `Server started on port ${port}`);
 }
 void bootstrap();

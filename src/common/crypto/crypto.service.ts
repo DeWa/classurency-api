@@ -1,4 +1,5 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { AppConfigService } from '../../config/app-config.service';
 import * as crypto from 'node:crypto';
 import * as secp256k1 from '@noble/secp256k1';
 import argon2 from 'argon2';
@@ -28,20 +29,9 @@ export class CryptoService {
   private readonly masterKey: Buffer;
   private readonly cardExportKey: Buffer;
 
-  constructor() {
-    const masterKeyEnv = process.env.CLASSURENCY_MASTER_KEY;
-    const cardKeyEnv = process.env.CLASSURENCY_CARD_EXPORT_KEY;
-
-    if (!masterKeyEnv || !cardKeyEnv) {
-      throw new Error('CLASSURENCY_MASTER_KEY and CLASSURENCY_CARD_EXPORT_KEY must be set');
-    }
-
-    this.masterKey = Buffer.from(masterKeyEnv, 'base64');
-    this.cardExportKey = Buffer.from(cardKeyEnv, 'base64');
-
-    if (this.masterKey.length !== 32 || this.cardExportKey.length !== 32) {
-      throw new Error('Crypto keys must be 32 bytes when base64-decoded');
-    }
+  constructor(appConfig: AppConfigService) {
+    this.masterKey = appConfig.crypto.masterKey;
+    this.cardExportKey = appConfig.crypto.cardExportKey;
   }
 
   generatePin(length = 4): string {

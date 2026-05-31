@@ -1,6 +1,9 @@
 import { Module } from '@nestjs/common';
 import { APP_FILTER } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
+import { validateAndCacheEnvironment } from './config/app.config';
+import { AppConfigModule } from './config/app-config.module';
+import { AppConfigService } from './config/app-config.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { LoggerModule } from 'nestjs-pino';
 import { HttpExceptionLoggingFilter } from '@common/logging/http-exception-logging.filter';
@@ -19,8 +22,17 @@ import { ItemsModule } from '@modules/items/items.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
-    LoggerModule.forRoot(createPinoLoggerParams()),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      validate: validateAndCacheEnvironment,
+      envFilePath: ['.env.development', '.env.test'],
+    }),
+    AppConfigModule,
+    LoggerModule.forRootAsync({
+      imports: [AppConfigModule],
+      inject: [AppConfigService],
+      useFactory: createPinoLoggerParams,
+    }),
     TypeOrmModule.forRootAsync(typeOrmConfig),
     CryptoModule,
     BlockchainModule,
