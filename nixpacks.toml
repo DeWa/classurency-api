@@ -1,0 +1,6 @@
+# Pin Node.js 22.13+ (default Nixpacks 22.x can be 22.11, which cannot require ESM-only @noble/secp256k1).
+[phases.setup]
+nixpkgsArchive = "51ad838b03a05b1de6f9f2a0fffecee64a9788ee"
+
+[start]
+cmd = "npm run start:prod"
