@@ -1601,7 +1601,7 @@
             "items": {
               "type": "array",
               "items": {
-                "type": "a"
+                "type": "string"
               },
               "format": "uuid"
             },
