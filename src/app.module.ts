@@ -25,6 +25,7 @@ import { ItemsModule } from '@modules/items/items.module';
     ConfigModule.forRoot({
       isGlobal: true,
       validate: validateAndCacheEnvironment,
+      envFilePath: ['.env.development', '.env.test'],
     }),
     AppConfigModule,
     LoggerModule.forRootAsync({

@@ -1,8 +1,11 @@
 import { DataSource } from 'typeorm';
 import 'reflect-metadata';
 import * as path from 'node:path';
-import 'dotenv/config';
+import dotenv from 'dotenv';
 import { getAppConfig } from './src/config/app.config';
+
+const envFile = typeof process.env.NODE_ENV === 'undefined' ? '.env.development' : `.env.${process.env.NODE_ENV}`;
+dotenv.config({ path: envFile });
 
 /**
  * TypeORM CLI and e2e bootstrap data source using validated application configuration.

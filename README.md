@@ -18,7 +18,7 @@ Backend API for [**Classurency**](https://github.com/DeWa/classurency): user acc
 2. **Environment**
 
    ```bash
-   cp .env.example .env
+   cp .env.example .env.development
    ```
 
    Generate two 32-byte keys (required):
