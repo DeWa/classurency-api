@@ -19,4 +19,4 @@ WORKDIR /app
 EXPOSE 3030
 
 # Start the application
-CMD ["node", "dist/src/main.js"]
+CMD ["node", "src/main.js"]
