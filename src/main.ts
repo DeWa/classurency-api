@@ -46,7 +46,7 @@ async function bootstrap() {
     }
   }
 
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0');
   app.get(Logger).log('info', `Server started on port ${port}`);
 }
 void bootstrap();
