@@ -27,7 +27,7 @@ export function createPinoLoggerParams(appConfig: AppConfigService): Params {
         ? undefined
         : {
             target: 'pino-pretty',
-            options: { singleLine: true },
+            options: { singleLine: true, translateTime: 'SYS:yyyy-mm-dd HH:MM:ss.l' },
           },
       redact,
     },
