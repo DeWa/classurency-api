@@ -107,7 +107,8 @@ npm run swagger:generate
 |--------|-------------|
 | `npm run start` | Start once |
 | `npm run start:dev` | Watch mode |
-| `npm run start:prod` | Run compiled `dist/src/main.js` |
+| `npm run start:prod` | Run pending migrations, then `dist/src/main.js` |
+| `npm run migration:run:prod` | Run pending migrations (compiled; requires `npm run build`) |
 | `npm run build` | Compile + OpenAPI export |
 | `npm run db:up` / `npm run db:down` | Start/stop Postgres via Docker Compose |
 | `npm run migration:run` | Run TypeORM migrations |

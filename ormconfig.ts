@@ -20,7 +20,7 @@ export function createAppDataSource(): DataSource {
     password: database.password,
     database: database.database,
     entities: [path.join(__dirname, 'src/**/*.entity.ts'), path.join(__dirname, 'dist/**/*.entity.js')],
-    migrations: [path.join(__dirname, 'src/migrations/*.ts'), path.join(__dirname, 'dist/migrations/*.js')],
+    migrations: [path.join(__dirname, 'src/migrations/*.ts'), path.join(__dirname, 'dist/src/migrations/*.js')],
     synchronize: false,
     logging: true,
   });

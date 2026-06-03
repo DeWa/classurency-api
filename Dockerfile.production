@@ -20,4 +20,4 @@ COPY --from=build /build/dist ./dist
 
 EXPOSE 3030
 
-CMD ["node", "dist/src/main.js"]
+CMD ["npm", "run", "start:prod"]
